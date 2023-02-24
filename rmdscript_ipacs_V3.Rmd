@@ -42,12 +42,9 @@ The subsequent pages output 9 sets of plots, each displaying the `r (ncol(arr_ra
 \newpage
 
 ### *Referrals:*  
-Referral patterns are based on the mean numbers of referrals for the past month split by pathway and locality  
+Referral patterns are based on the mean numbers of referrals for the past six months split by pathway and locality.
 
   * **BArr** *Baseline referrals*  
-  <!-- *Pathway split [`r input_file$Baseline.pathway.split`];   -->
-  <!-- Locality split [`r input_file$Locality.split`]* -->
-  
 ```{r BArr-plot,warning=FALSE, eval=TRUE, echo=FALSE, fig.height=4, fig.width=8}
 
 arr_plots <- function(arrs){
@@ -61,42 +58,67 @@ arr_plots <- function(arrs){
   return(arr_plot) 
   }
 
-#call function for baseline arrivals plot
+# Create baseline arrivals plot using arr_plots()
 arrivals_all$name <- paste0(arrivals_all$node, "_", arrivals_all$scenario)
 Barr <- arrivals_all %>% filter(grepl("BArr", name))
 arr_plots(Barr)
 ```
 
   * **S1Arr** *Scenario 1 referrals*  
-  *Scenario split [`r input_file$Scenario.pathway.split`];*  
-  <!-- Locality split [`r input_file$Locality.split`]* -->
-  
 ```{r SArr-plot, warning=FALSE, eval=TRUE, echo=FALSE, fig.height=4, fig.width=8}
-#call function for scenario arrivals plot
+# Create scenario arrivals plot using arr_plots()
 Sarr <- arrivals_all %>% filter(grepl("S1Arr", name))
 arr_plots(Sarr)
 ```
 \newpage
 ```{r table}
-df<-capacity[,-4] %>% pivot_wider(names_from='scenario', values_from=capacity)
-df$S1Cap<-replace(df$S1Cap,df$S1Cap=="2000","Unrestricted")
-df2<-losA[,c(1,5,6)]%>%pivot_wider(names_from="scenario", values_from='mean_los')
-df3<-cbind(df,round(df2[,2:4],1))
 
-df3<-rename(df3, Locality=node)
-colnames(df3)<-c("Locality", "Baseline Capacity", "Target Capacity", "Baseline LoS", "Target LoS", "Interim LoS")
+# CHANGE: Removed hard coding, simplified into 3 linked dplyr sections,
+# changed to more meaningful dataframe names, and adjusted formatting (adding
+# spaces and use "", not '')
 
-ft <- flextable(df3)
-ft <- add_header_lines (ft,values = "Capacity and Length of Stay Scenario Parameters as of 21/11/2022")
-ft <- autofit(ft)
-ft
+# Create dataframe with one row per pathway and columns containing the values
+# for capacity and mean length of stay at baseline and for each scenario
+info_table_cap <- capacity %>%
+  select(node, scenario, capacity) %>%
+  pivot_wider(names_from = "scenario", values_from = "capacity") %>%
+  mutate(S1Cap = replace(S1Cap, S1Cap=="2000", "Unrestricted"))
+
+info_table_los <- losA %>%
+  select(node, scenario, mean_los) %>%
+  mutate(mean_los = round(mean_los, 1)) %>%
+  pivot_wider(names_from = "scenario", values_from = "mean_los")
+
+info_table_merge <- merge(df, df2) %>%
+  rename(Locality = node,
+         `Baseline Capacity` = BCap,
+         `Target Capacity` = S1Cap,
+         `Baseline LoS` = Blos,
+         `Target LoS` = S1los,
+         `Interim LoS` = S2los)
+
+# Convert into flextable, add header, optimise heights + widths, then display
+info_table_ft <- flextable(info_table_merge)
+info_table_ft <- add_header_lines(
+  info_table_ft,
+  values = "Capacity and Length of Stay Scenario Parameters as of 21/11/2022")
+info_table_ft <- autofit(info_table_ft)
+info_table_ft
 ```
 
 \newpage
 ```{r select-data,warning=FALSE, eval=TRUE, echo=FALSE}
-################ processing data for plotting #################################
-bed_data <- read.csv(paste0("outputs/Scenarios_Bed_based_output_", format(Sys.time(), "%Y-%m-%d"), ".csv"))
-visit_data <- read.csv(paste0("outputs/Scenarios_Visit_based_output_", format(Sys.time(), "%Y-%m-%d"), ".csv"))
+# Process data so it can be used for plotting
+
+# CHANGE: Scenario outputs refer to filename used rather than current date
+
+# Import outputs from bed-based and visit-based scenarios
+# Use "here" package to create relative file path that works on all systems
+output_suffix <- paste0("_output_using_",
+                        gsub(".xlsx", "", input_filename), ".csv")
+bed_data <- read.csv(here("outputs", paste0("bed", output_suffix)))
+visit_data <- read.csv(here("outputs", paste0("visit", output_suffix)))
+
 bed_data$date <- as.Date(bed_data$date)
 visit_data$date <- as.Date(visit_data$date)
 today <- as.Date(Sys.time(), format="%d-%m-&Y")
@@ -104,13 +126,8 @@ cbPalette <- c("#FF0F0F", "#FF7E01", "#DDDD00", "#01FF01",
                "#007540", "#83FFFF", "#007CFF", "#7900FF", 
                "#FF70FF", "#000000", "#818181", "#9A6B3F")
 
-# auto_parameters_loc_date <- auto_parameters_loc
-# auto_parameters_loc_date$Date <- (seq(as.Date(Sys.time(), format="%d-%m-&Y"), 
-#       by = "day",length.out = nrow(auto_parameters_loc_date))) - nrow(auto_parameters_loc_date)+1
-# auto_parameters_loc_date <- auto_parameters_loc_date %>% 
-#   dplyr::select(c(Date,contains(c("occ","dtoc")))) %>% pivot_longer(cols=!Date,
-#       names_to=c('pathway', 'measure','locality'), 
-#       names_sep = "_", values_to='value')
+# CHANGE: Removed auto_parameters_loc code as no longer used
+
 p1_bristol <- visit_data %>% dplyr::select(c(date,contains("p1_B"))) %>%
   rename_with(~ str_remove(., "P1_B_"), everything())
 p2_bristol <- bed_data %>% dplyr::select(c(date,contains("p2_B"))) %>%
