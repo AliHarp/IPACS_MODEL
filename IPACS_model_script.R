@@ -1,8 +1,3 @@
-rm(list=ls())
-
-# Need to add to renv:
-# install.packages("flextable")
-
 # CHANGE: Changed to library (as stops if there is error, but require runs)
 # CHANGE: Removed install.packages() as all should be present with renv
 library(doSNOW)
@@ -13,18 +8,26 @@ library(parallel)
 library(readxl)
 library(here)
 
-####################################################################################################################
-#set working directory. Can use getwd() in console 
+# Will need to remove these as not reproducible
+rm(list=ls())
 wd <- setwd("~/Documents/IPACS_MODEL")
+
+# CHANGE: Moved to top of file (as that's where you should put parameters you can change)
+# Set model parameters (standard deviation for length of stay distribution,
+# and number of runs for simulation)
+sd_los <- 3 #no info on sd - estimate provided
+nruns_all <- 5
+
+# Will need to remove this historic file (some old sections depend on it)
 input_file <- read.csv("IPACS input data.csv") 
 
+# Import model parameters
 # CHANGE: Input file now generated manually, so changed to manually input of filename
-input_filename <- "IPACS_20230214_fix.xlsx"
-
 # CHANGE: Create list of (1) dataframes to create, and (2) sheets to import from
 # Then import each sheet and save to the relevant dataframe
 # Use "here" package to create relative file path that works on all systems
 # (i.e. no backslashes)
+input_filename <- "IPACS_20230214_fix.xlsx"
 input_list <- list(c("arrivals_all", "arrivals"),
                    c("init_conds", "initial conditions"),
                    c("capacity", "capacity"),
@@ -35,40 +38,36 @@ for (x in input_list){
                                   sheet=x[2]))
 }
 
-#process data
-#source("Parameters_IPACS_2.R")
-
-#read in data
-#run_time <- 28*2
-sd_los <- 3 #no info on sd - estimate provided
-
+# Set run time as the number of unique dates in arrivals
 run_time <- length(unique(arrivals_all$date))
 
-#create single df with one row per simulation pathway/scenario
-capacity$S <- paste0(capacity$node, "_", capacity$scenario)
-arrivalsS <- arrivals_all[!duplicated(arrivals_all[, c(1,3)]),]
-scenarioss <- merge(capacity, losA, by="node", all=TRUE)
-scenarioss$S <- paste0(scenarioss$S, "_", scenarioss$scenario.y)
+# CHANGE: Simplified creation of arr_scenarios so it is more clear what happens
+# Create unique names for scenario columns, pivot init_conds so it has one row
+# per scenario. Then merge the dataframes and create a summary scenario column
+# (used setdiff() to check identical besides some scenario columns - they are)
+arr_scenarios <- list(arrivals_all %>% rename(sc_arr = scenario),
+                      capacity %>% rename(s_cap = scenario),
+                      losA %>% rename(s_los = scenario),
+                      init_conds %>% pivot_wider(names_from = measure,
+                                                 values_from = value)) %>%
+  reduce(merge, by="node", all=TRUE) %>%
+  mutate(S = paste0(node, "_",  s_cap, "_", s_los, "_", sc_arr))
 
-scenarios <-  merge(arrivalsS, scenarioss, by="node", all=TRUE)
-scenarios$S <- paste0(scenarios$S, "_", scenarios$scenario)
-scenarios <- merge(scenarios, init_conds, by= "node", all=TRUE) %>%
-  pivot_wider(names_from = measure, values_from = value)
+# Create "scenarios" by removing the various different arrivals for each date
+scenarios <- arr_scenarios %>%
+  select(-c(arrivals, date)) %>%
+  unique()
 
-#arrivals dataframe for arrivals trajectories
-arr_scenarios <- merge(arrivals_all, scenarioss, by="node", all=TRUE)
-arr_scenarios$S <- paste0(arr_scenarios$S, "_", arr_scenarios$scenario)  
-arr_scenarios <- merge(arr_scenarios, init_conds, by= "node", all=TRUE)  %>%
-  pivot_wider(names_from = measure, values_from = value)
-
+# Timer (to record how submodel scripts take to run)
 start.time<-Sys.time()
-nruns_all<-5
-  
+
+# Will need to change to running as functions rather than source()
 source("Visit_based_submodel_script.R")
 source("Bed_based_submodel_script.R")
+
+# Print time taken for submodel scripts to run
 print(difftime(Sys.time(),start.time),quote=FALSE)
 
-suppressWarnings({rmarkdown::render('rmdscript_ipacs_V3.Rmd', output_file=("IPACS Report"))})
-
-#suppressWarnings({rmarkdown::render('rmdscript_ipacs_V5_fewscenarios_november.Rmd', output_file=("5 Scenarios IPACS Report November"))})
-
+# Produce word document report using RMarkdown
+suppressWarnings({rmarkdown::render('rmdscript_ipacs_V3.Rmd',
+                                    output_file=("outputs/IPACS Report"))})
