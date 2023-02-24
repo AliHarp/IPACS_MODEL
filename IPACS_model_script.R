@@ -18,9 +18,6 @@ wd <- setwd("~/Documents/IPACS_MODEL")
 sd_los <- 3 #no info on sd - estimate provided
 nruns_all <- 5
 
-# Will need to remove this historic file (some old sections depend on it)
-input_file <- read.csv("IPACS input data.csv") 
-
 # Import model parameters
 # CHANGE: Input file now generated manually, so changed to manually input of filename
 # CHANGE: Create list of (1) dataframes to create, and (2) sheets to import from
