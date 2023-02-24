@@ -225,8 +225,8 @@ MeansOutput<-cbind(data.frame(arr_rates$date[1:length(arr_rates$date)]),
                    data.frame(round(data.frame(beds_cost))))
 colnames(MeansOutput)<-colnames
 
-write.csv(MeansOutput, paste0("outputs/Scenarios_Bed_based_output_", format(Sys.time(), "%Y-%m-%d"), ".csv"), row.names = FALSE)
-
-#### outputs for indiv markdowns with CIs
-
-
+# CHANGE: Save to excel, with filename based on the input file used rather than today's date
+write.csv(MeansOutput,
+          paste0("outputs/bed_output_using_",
+                 gsub(".xlsx", "", input_filename), ".csv"),
+          row.names = FALSE)

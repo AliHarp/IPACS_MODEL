@@ -439,6 +439,9 @@ MeansOutput_v<-cbind(data.frame(arr_rates_visit_p1$date[1:length(arr_rates_visit
                      data.frame(data.frame(ptvisits_costs)))
 colnames(MeansOutput_v)<-colnames_v
 
-write.csv(MeansOutput_v, paste0("outputs/Scenarios_Visit_based_output_", 
-    format(Sys.time(), "%Y-%m-%d"), ".csv"), row.names = FALSE)
+# CHANGE: Save to csv, with filename based on the input file used rather than today's date
+write.csv(MeansOutput_v,
+          paste0("outputs/visit_output_using_",
+                 gsub(".xlsx", "", input_filename), ".csv"),
+          row.names = FALSE)
  
