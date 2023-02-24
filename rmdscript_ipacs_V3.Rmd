@@ -20,7 +20,7 @@ library(flextable)
 
 
 ### IPACS models the following processes at the locality level:  
-  ![Process map for P1,2,3](images/flowmap.PNG)  
+  ![Process map for P1,2,3](images/flowmap.png)  
   
 ### The workflow for creating this document is as follows:
   ![Routine Report workflow](images/wflow.png)
