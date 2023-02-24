@@ -1,35 +1,40 @@
 rm(list=ls())
 
-install.packages("doSNOW")
-install.packages("flextable")
+# Need to add to renv:
+# install.packages("flextable")
 
-rm(list=ls())
-require(doSNOW)
-#install.packages("foreach")
-require(foreach)
-#install.packages("tidyverse")
-require(tidyverse, warn.conflicts=FALSE)
+# CHANGE: Changed to library (as stops if there is error, but require runs)
+# CHANGE: Removed install.packages() as all should be present with renv
+library(doSNOW)
+library(foreach)
+library(tidyverse, warn.conflicts=FALSE)
 options(dplyr.summarise.inform=FALSE)
-#install.packages("parallel")
-require(parallel)
-#install.packages("readxl")
-require(readxl)
+library(parallel)
+library(readxl)
+library(here)
 
 ####################################################################################################################
 #set working directory. Can use getwd() in console 
-wd<-setwd("~/Documents/IPACS/RoutineReport_HandoverPeter")
+wd <- setwd("~/Documents/IPACS_MODEL")
 input_file <- read.csv("IPACS input data.csv") 
 
-arrivals_all <- readxl::read_excel(paste0("model_inputs/IPACS_", format(Sys.time(), 
-                             "%Y%m%d.xlsx")), sheet = "arrivals")
-init_conds <- readxl::read_excel(paste0("model_inputs/IPACS_", format(Sys.time(), 
-                             "%Y%m%d.xlsx")), sheet = "initial conditions")
-capacity <- readxl::read_excel(paste0("model_inputs/IPACS_", format(Sys.time(), 
-                             "%Y%m%d.xlsx")), sheet = "capacity")
-losA <- readxl::read_excel(paste0("model_inputs/IPACS_", format(Sys.time(), 
-                             "%Y%m%d.xlsx")), sheet = "los")
-costs <- readxl::read_excel(paste0("model_inputs/IPACS_", format(Sys.time(),
-                              "%Y%m%d.xlsx")), sheet = "costs")
+# CHANGE: Input file now generated manually, so changed to manually input of filename
+input_filename <- "IPACS_20230214_fix.xlsx"
+
+# CHANGE: Create list of (1) dataframes to create, and (2) sheets to import from
+# Then import each sheet and save to the relevant dataframe
+# Use "here" package to create relative file path that works on all systems
+# (i.e. no backslashes)
+input_list <- list(c("arrivals_all", "arrivals"),
+                   c("init_conds", "initial conditions"),
+                   c("capacity", "capacity"),
+                   c("losA", "los"),
+                   c("costs", "costs"))
+for (x in input_list){
+  assign(x[1], readxl::read_excel(here("model_inputs", input_filename),
+                                  sheet=x[2]))
+}
+
 #process data
 #source("Parameters_IPACS_2.R")
 
