@@ -15,8 +15,9 @@ wd <- setwd("~/Documents/IPACS_MODEL")
 # CHANGE: Moved to top of file (as that's where you should put parameters you can change)
 # Set model parameters (standard deviation for length of stay distribution,
 # and number of runs for simulation)
+# CHANGE: rename nruns_all as nruns. set as integer. therefore not needing nruns_p1 (nruns_p1 <- as.integer(nruns_all)) or nruns (nruns <- as.integer(nruns_all))
 sd_los <- 3 #no info on sd - estimate provided
-nruns_all <- 5
+nruns <- as.integer(5)
 
 # Import model parameters
 # CHANGE: Input file now generated manually, so changed to manually input of filename
@@ -35,8 +36,9 @@ for (x in input_list){
                                   sheet=x[2]))
 }
 
-# Set run time as the number of unique dates in arrivals
-run_time <- length(unique(arrivals_all$date))
+# Set run time as the number of unique dates in arrivals (used in visit-based)
+# CHANGE: was run_time then convert to integer to make sim_length - removed the middle step
+sim_length <- as.integer(length(unique(arrivals_all$date)))
 
 # CHANGE: Simplified creation of arr_scenarios so it is more clear what happens
 # Create unique names for scenario columns, pivot init_conds so it has one row
