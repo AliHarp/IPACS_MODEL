@@ -1,63 +1,85 @@
+# Visit-based model (for P1 pathways)
 
-
-############## Model for P1 type pathways #####################
-# PARAMETERS ###################################
-################################################
-
-# Select visit-based scenarios
-visit_scenarios <- scenarios %>% filter(str_detect(node, "P1"))
-arr_scenarios_v <- arr_scenarios %>% filter(str_detect(node, "P1"))
-costs_visit <- costs %>% filter(str_detect(node, "P1"))
+# Manual parameters
+# CHANGE: Moved to top of file (as manually input)
+# ISR/IVR = initial service/visit rate
+# ESR/FVR = end service rate/final visit rate
+# AMY: Need to standardise names (ISR/IVR) (ESR/FVR/endSR)
 sd_ISR <- 0.5
 sd_ESR <- 0.5
-#####input variables#####
-visit_cap <- as.list(visit_scenarios$capacity)
+SEED <- 1
+warmup <- 0
+
+# Extract visit-based scenarios (P1) from imported dataframes
+# CHANGE: To reduce repetitive operations
+df_list <- list(list("visit_scenarios", scenarios),
+                list("arr_scenarios_v", arr_scenarios),
+                list("costs_visit", costs))
+for (x in df_list){
+  assign(x[[1]], x[[2]] %>% filter(str_detect(node, "P1")))
+}
+
+# Create lists containing parameters from dataframes
+# AMY: requires more comments
 visit_init_occ <- as.list(visit_scenarios$occ)
 visit_init_q <- as.list(visit_scenarios$dtoc)
-visit_loss <- as.list(rep(0, nrow(visit_scenarios)))
 visit_srv_dist <- as.list(visit_scenarios$los_dist)
+visit_cap <- as.integer(as.list(visit_scenarios$capacity))
+visit_loss <- as.list(rep(0, nrow(visit_scenarios)))
 
-#if lnorm dist los
-visit_param_dists <- visit_scenarios %>% separate(los_params, 
-                      into = c("mu", "sigma"), sep = ",")
-visit_param_dists$mu <- as.double(visit_param_dists$mu)
-visit_param_dists$sigma <- as.double(visit_param_dists$sigma)
-mu_sig_pair<-as.data.frame(cbind(visit_param_dists$mu,visit_param_dists$sigma))
-colnames(mu_sig_pair) <- NULL
-visit_srv_params <- as.list(data.frame(t(mu_sig_pair)))
+# If you have a log-normal distribution for length of stay
+# CHANGE: Simplified
+# AMY: could change mu and sigma to mean and SD to be consistent with language
+# AMY: could provide better column labels
+visit_srv_params <- visit_scenarios %>%
+  separate(los_params, into = c("mu", "sigma"), sep = ",", convert=TRUE) %>%
+  select(mu, sigma) %>%
+  unname() %>%
+  t() %>%
+  data.frame() %>%
+  as.list()
 
-#if norm
+#if norm, AMY: Provide more descriptive comment (once certain on what this means)
+# AMY: Not sure why round down the mean length of stay to an integer (e.g. mean_los[85] 18.7 goes to 18)
 visit_param_dist <- as.list(as.integer(visit_scenarios$mean_los))
+# Repeat "sd_los" for the number of rows in "visit_scenarios"
 visit_param_sd <- as.list(rep(sd_los, nrow(visit_scenarios)))
 
-#arrival rates 
-#arrivalsSV$scenarios <- paste0(arrivalsSV$node, '_', arrivalsSV$scenario)
-arr_rates_visit_p1 <- arr_scenarios_v %>% 
-  dplyr::select(arrivals, date, S) %>%
-  pivot_wider(names_from=S,
-      values_from=arrivals) %>%
-    arrange(date)
-visit_pathway_vector <- dput(colnames(arr_rates_visit_p1[-1]))
-#set the minimum and maximum LOS and ISR. 
-ISR_list<-as.list(visit_scenarios$IVR)
-ISR <- as.integer(ISR_list)
-endSR_list<-as.list(visit_scenarios$FVR)
-endSR <- as.integer(endSR_list)
-sd_ISR_list <- as.list(rep(sd_ISR, nrow(visit_scenarios)))
-sd_ESR_list <- as.list(rep(sd_ESR, nrow(visit_scenarios)))
-sd_ISR <- as.double(sd_ISR_list)
-sd_ESR <- as.double(sd_ESR_list)
+# Select arrivals, date and scenario, then pivot so each row is a date
+# and arrivals on that date, with columns for each scenario
+arr_rates_visit_p1 <- arr_scenarios_v %>%
+  select(arrivals, date, S) %>%
+  pivot_wider(names_from = S, values_from = arrivals) %>%
+  arrange(date)
 
-n_patients <- as.integer(visit_cap) #number of patients system can take
-n_slots  <- n_patients * mean(c(ISR, endSR))
+# Create vector with each scenario name
+# CHANGE: no hard coding of data column
+# AMY: dput prints to screen, without it is same object, presume that print is needed
+visit_pathway_vector <- dput(colnames(arr_rates_visit_p1 %>% select(-date)))
 
-SEED <-1
-sim_length <- as.integer(run_time)
-warmup <-0 
-nruns_p1<-as.integer(nruns_all)
-visits_based_output<-NULL
-# date_ts = data.frame(seq(arr_rates_visit_p1[1,1]), 
-#   by = "day", length.out = sim_length)
+# Set the minimum and maximum length of stay (LOS) and initial service rate (ISR)
+# CHANGE: removed conversion to list as not required
+# AMY: concerned that it is replacing value of objects rather than making new
+# AMY: need to understand why these are min and max LOS and ISR (as title was from existing script)
+ISR <- as.integer(visit_scenarios$IVR)
+endSR <- as.integer(visit_scenarios$FVR)
+
+# Create lists with sd_ISR or sd_ESR repeated for number of visit scenarios
+sd_ISR <- as.double(rep(sd_ISR, nrow(visit_scenarios)))
+sd_ESR <- as.double(rep(sd_ESR, nrow(visit_scenarios)))
+
+# CHANGE: Removed n_patients (just made visit_cap as.integer() when created), and replaced n_patients with visit_cap below
+
+# Create n_slots, the number of visit slots available per day
+# Based on an average visit rate (as from mean of ISR and endSR)
+# multiplied by the capacity for P1 (visit_cap)
+n_slots  <- visit_cap * mean(c(ISR, endSR))
+
+# CHANGE: create sim_length in model_script by setting to as.integer() there, removing need for run_time object
+
+# CHANGE: create nruns as integer to begin with, and use here (instead of nruns_all and setting as integer for each model with different object names)
+
+visits_based_output <- NULL
     
   ####runs##################################
   #z represents the index for all scenarios through all visit-based pathways
@@ -66,8 +88,8 @@ visits_based_output<-NULL
     cl<-parallel::makeCluster(1)   #, setup_strategy="sequential")
     registerDoSNOW(cl)
     run<-1
-    RESULTS<-foreach(run=1:nruns_all,.combine="rbind") %dopar% {
-    set.seed(nruns_p1*(SEED-1)+run)  
+    RESULTS<-foreach(run=1:nruns,.combine="rbind") %dopar% {
+    set.seed(nruns*(SEED-1)+run)  
     
       #LOS distribution
      dis_los <- function(){
@@ -349,17 +371,17 @@ visits_based_output<-NULL
   ###############################################
   
   #creating dataframe for summary info
-  summary <- data.frame(LOS = integer(nruns_p1),
-                        ISR = integer(nruns_p1),
-                        nruns = integer(nruns_p1),
-                        sim_length = integer(nruns_p1),
-                        warm_up=integer(nruns_p1),
-                        capacity = integer(nruns_p1),
-                        mean_wait= numeric(nruns_p1),
-                        q_length = numeric(nruns_p1),
-                        res_used= numeric(nruns_p1),
-                        res_idle= numeric(nruns_p1),
-                        in_sys = numeric(nruns_p1))
+  summary <- data.frame(LOS = integer(nruns),
+                        ISR = integer(nruns),
+                        nruns = integer(nruns),
+                        sim_length = integer(nruns),
+                        warm_up=integer(nruns),
+                        capacity = integer(nruns),
+                        mean_wait= numeric(nruns),
+                        q_length = numeric(nruns),
+                        res_used= numeric(nruns),
+                        res_idle= numeric(nruns),
+                        in_sys = numeric(nruns))
   
   #splitting up RESULTS list in 3
   output<-RESULTS[,1]
@@ -370,18 +392,18 @@ visits_based_output<-NULL
   
   resources<-RESULTS[,2]
   res<-do.call(cbind, resources) 
-  colnames(res)<- c(1:nruns_p1)
+  colnames(res)<- c(1:nruns)
   
   waittimes <- RESULTS[,3]
   wait<-do.call(rbind, waittimes)
   
   #summary of all runs
-  for (k in 1:nruns_p1){ 
+  for (k in 1:nruns){ 
     r.out <- which(out[,1]==k)
     k.wait <- which(wait[,1]==k)
     summary[k,]<- c(LOS = 1/visit_param_dist[[z]],
                     ISR = ISR[z],
-                    nruns = nruns_p1,
+                    nruns = nruns,
                     sim_length = sim_length,
                     warm_up=warmup,
                     capacity = n_slots[z],
