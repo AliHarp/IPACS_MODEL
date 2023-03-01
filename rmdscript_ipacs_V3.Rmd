@@ -51,6 +51,8 @@ The subsequent pages output 9 sets of plots, each displaying the `r (ncol(arr_ra
   
   * Costs - total system cost (acute delay cost + community service cost).
 
+<!-- AMY: Need to change from arr_rates (created in bed_based scenarios), ncol(arr_rates)=73 -->
+
 \newpage
 
 ### *Referrals:*  
@@ -59,8 +61,13 @@ Referral patterns are based on the mean numbers of referrals for the past six mo
   * **BArr** *Baseline referrals*  
 ```{r BArr-plot,warning=FALSE, eval=TRUE, echo=FALSE, fig.height=4, fig.width=8}
 
+# Function for generating plot of arrivals data
+# Inputs:
+# arrs - dataframe arrivals on each data for each pathway and location
+# Outputs:
+# arr_plot - image with arrivals in each pathway and location for baseline or scenario
 arr_plots <- function(arrs){
-  # function for generating plot of arrivals data
+  
   arr_plot <- ggplot(arrs, aes(x=date, y=arrivals))+
     theme_bw()+
     ylab("Daily referrals")+
@@ -168,6 +175,7 @@ create_plot_df <- function(sim_res, path_loc){
 # - Removed commented out part to create horizontal line as that is not used anymore (as today's line is misleading as typically would differentiate real and simulated data)
 # - Simplified generation of scenario labels
 # - Simplified recoding
+# - Tried adding capacity line, get error that it appears in 2nd plot for some of them, also axis boundary problems
 
 # NOT CHANGE:
 # recode() has been superseded by case_match() BUT only in recent dplyr so leave as recode() for now so works with old versions
@@ -180,15 +188,22 @@ create_plot_df <- function(sim_res, path_loc){
 # Outputs:
 # plot - tbc
 plots <- function(pathway_data, path_loc) {
-  # Extract capacity for baseline and scenario
-  # AMY: incomplete, repetitive and not perfect
-  # bcap_line <- as.numeric(capacity[capacity$node==path_loc &
-  #                                    capacity$scenario=="BCap", "capacity"])
-  # s1cap_line <- as.numeric(capacity[capacity$node==path_loc &
-  #                                     capacity$scenario=="S1Cap", "capacity"])
+  # # Extract capacity for baseline and scenario
+  # # AMY: depends on capacity, which is imported by model script. Also a bit repetitive. Could do with label.
+  # bcap_line <- as.numeric(
+  #   capacity[capacity$node==path_loc & capacity$scenario=="BCap", "capacity"])
+  # s1cap_line <- as.numeric(
+  #   capacity[capacity$node==path_loc & capacity$scenario=="S1Cap", "capacity"])
+  # 
+  # # Create dataframe including faceting variables with intercept
+  # # If capacity line is 2000, this is infinite capacity, so do not plot
   # if (s1cap_line==2000){
-  #   s1cap_line = NA
+  #   add_lines <- data.frame(x = "Mean patients in service", y = bcap_line)
+  # } else {
+  #   add_lines <- data.frame(x = rep("Mean patients in service", 2), y = c(bcap_line, scap_line))
   # }
+  
+  # Create plots
   plot <- pathway_data %>%
     mutate(measure = factor(measure, levels = c("occ", "niq", "wait", "cost"))) %>%
     mutate(measure = recode(measure,
@@ -200,8 +215,6 @@ plots <- function(pathway_data, path_loc) {
                color = factor(scenario)), linetype = factor(scenario)) +
     scale_colour_manual(labels = paste0("Scenario ", 1:12),
                         values = cbPalette) +
-    # geom_hline(yintercept = bcap_line) +
-    # geom_hline(yintercept = s1cap_line) +
     theme_bw() +
     theme(
       panel.border = element_rect(fill = NA,
@@ -221,6 +234,7 @@ plots <- function(pathway_data, path_loc) {
                  date_minor_breaks = "1 day",
                  date_labels = "%d-%b") +
     facet_grid(measure ~ ., scales = "free")
+  # geom_hline(data = add_lines, aes(yintercept = y))
   return(plot)
 }
 
