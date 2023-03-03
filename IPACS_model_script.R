@@ -40,22 +40,27 @@ for (x in input_list){
 # CHANGE: was run_time then convert to integer to make sim_length - removed the middle step
 sim_length <- as.integer(length(unique(arrivals_all$date)))
 
-# CHANGE: Simplified creation of arr_scenarios so it is more clear what happens
-# Create unique names for scenario columns, pivot init_conds so it has one row
-# per scenario. Then merge the dataframes and create a summary scenario column
-# (used setdiff() to check identical besides some scenario columns - they are)
+# CHANGE: made dplyr operations so it was clearer what was happening
+# Would need further work to simplify further (is a bit repetitive still)
+# Create scenarios
+scenarios <- list(arrivals_all %>%
+                    rename(sc_arr = scenario) %>%
+                    distinct(node, sc_arr, .keep_all = TRUE),
+                  capacity %>% rename(s_cap = scenario),
+                  losA %>% rename(s_los = scenario),
+                  init_conds) %>%
+  reduce(merge, by="node", all=TRUE) %>%
+  mutate(S = paste0(node, "_",  s_cap, "_", s_los, "_", sc_arr)) %>%
+  pivot_wider(names_from = measure, values_from = value)
+
+# Create arr_scenarios
 arr_scenarios <- list(arrivals_all %>% rename(sc_arr = scenario),
                       capacity %>% rename(s_cap = scenario),
                       losA %>% rename(s_los = scenario),
-                      init_conds %>% pivot_wider(names_from = measure,
-                                                 values_from = value)) %>%
+                      init_conds) %>%
   reduce(merge, by="node", all=TRUE) %>%
-  mutate(S = paste0(node, "_",  s_cap, "_", s_los, "_", sc_arr))
-
-# Create "scenarios" by removing the various different arrivals for each date
-scenarios <- arr_scenarios %>%
-  select(-c(arrivals, date)) %>%
-  unique()
+  mutate(S = paste0(node, "_", s_cap, "_", s_los, "_", sc_arr)) %>%
+  pivot_wider(names_from = measure, values_from = value)
 
 # Timer (to record how submodel scripts take to run)
 start.time<-Sys.time()
