@@ -2,25 +2,29 @@
 # CHANGE: Removed install.packages() as all should be present with renv
 library(doSNOW)
 library(foreach)
-library(tidyverse, warn.conflicts=FALSE)
-options(dplyr.summarise.inform=FALSE)
+library(tidyverse, warn.conflicts = FALSE)
+options(dplyr.summarise.inform = FALSE)
 library(parallel)
 library(readxl)
 library(here)
 
 # Will need to remove these as not reproducible
-rm(list=ls())
+rm(list = ls())
 wd <- setwd("~/Documents/IPACS_MODEL")
 
-# CHANGE: Moved to top of file (as that's where you should put parameters you can change)
+# CHANGE: Moved to top of file (as that's where you should put parameters you
+# can change)
 # Set model parameters (standard deviation for length of stay distribution,
 # and number of runs for simulation)
-# CHANGE: rename nruns_all as nruns. set as integer. therefore not needing nruns_p1 (nruns_p1 <- as.integer(nruns_all)) or nruns (nruns <- as.integer(nruns_all))
+# CHANGE: rename nruns_all as nruns. set as integer.
+# Therefore not needing nruns_p1 (nruns_p1 <- as.integer(nruns_all)) or
+# need nruns (nruns <- as.integer(nruns_all))
 sd_los <- 3 #no info on sd - estimate provided
 nruns <- as.integer(5)
 
 # Import model parameters
-# CHANGE: Input file now generated manually, so changed to manually input of filename
+# CHANGE: Input file now generated manually, so changed to manually input of
+# filename
 # CHANGE: Create list of (1) dataframes to create, and (2) sheets to import from
 # Then import each sheet and save to the relevant dataframe
 # Use "here" package to create relative file path that works on all systems
@@ -33,15 +37,18 @@ input_list <- list(c("arrivals_all", "arrivals"),
                    c("costs", "costs"))
 for (x in input_list){
   assign(x[1], readxl::read_excel(here("model_inputs", input_filename),
-                                  sheet=x[2]))
+                                  sheet = x[2]))
 }
 
 # Set run time as the number of unique dates in arrivals (used in visit-based)
-# CHANGE: was run_time then convert to integer to make sim_length - removed the middle step
+# CHANGE: was run_time then convert to integer to make sim_length - removed the
+# middle step
 sim_length <- as.integer(length(unique(arrivals_all$date)))
 
 # CHANGE: made dplyr operations so it was clearer what was happening
 # Would need further work to simplify further (is a bit repetitive still)
+# Need to be sure that nothing incorrect is being used due to how it is being
+# created with distinct
 # Create scenarios
 scenarios <- list(arrivals_all %>%
                     rename(sc_arr = scenario) %>%
@@ -49,7 +56,7 @@ scenarios <- list(arrivals_all %>%
                   capacity %>% rename(s_cap = scenario),
                   losA %>% rename(s_los = scenario),
                   init_conds) %>%
-  reduce(merge, by="node", all=TRUE) %>%
+  reduce(merge, by = "node", all = TRUE) %>%
   mutate(S = paste0(node, "_",  s_cap, "_", s_los, "_", sc_arr)) %>%
   pivot_wider(names_from = measure, values_from = value)
 
@@ -58,20 +65,23 @@ arr_scenarios <- list(arrivals_all %>% rename(sc_arr = scenario),
                       capacity %>% rename(s_cap = scenario),
                       losA %>% rename(s_los = scenario),
                       init_conds) %>%
-  reduce(merge, by="node", all=TRUE) %>%
+  reduce(merge, by = "node", all = TRUE) %>%
   mutate(S = paste0(node, "_", s_cap, "_", s_los, "_", sc_arr)) %>%
   pivot_wider(names_from = measure, values_from = value)
 
 # Timer (to record how submodel scripts take to run)
-start.time<-Sys.time()
+# AMY: This gets replaced when you create start.time in bed_based I think
+start_time <- Sys.time()
 
 # Will need to change to running as functions rather than source()
 source("Visit_based_submodel_script.R")
 source("Bed_based_submodel_script.R")
 
 # Print time taken for submodel scripts to run
-print(difftime(Sys.time(),start.time),quote=FALSE)
+print(difftime(Sys.time(), start_time), quote = FALSE)
 
 # Produce word document report using RMarkdown
-suppressWarnings({rmarkdown::render('rmdscript_ipacs_V3.Rmd',
-                                    output_file=("outputs/IPACS Report"))})
+suppressWarnings({
+  rmarkdown::render("rmdscript_ipacs_V3.Rmd",
+                    output_file = "outputs/IPACS Report")
+})
