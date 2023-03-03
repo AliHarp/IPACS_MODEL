@@ -7,7 +7,8 @@ bed_scenarios <- scenarios %>% filter(!str_detect(node, "P1"))
 arr_rates_bed <- arr_scenarios %>% filter(!str_detect(node, "P1"))
 costs_bed <- costs %>% filter(!str_detect(node, "P1"))
 loss <- as.list(rep(0, nrow(bed_scenarios)))
-nruns <- as.integer(nruns_all)
+
+# CHANGE: nruns created in main script by setting as integer there instead
 
 # convert parameters to lists per node
 init_occ <- as.list(bed_scenarios$occ)
