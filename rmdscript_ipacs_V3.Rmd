@@ -13,7 +13,8 @@ library(flextable)
 ```
 
 ```{r import_res}
-# CHANGE: Scenario outputs filename refer to input filename used rather than current date
+# CHANGE: Scenario outputs filename refer to input filename used rather than
+# current date
 
 # Import outputs from bed-based and visit-based scenarios
 # Use "here" package to create relative file path that works on all systems
@@ -65,31 +66,31 @@ Referral patterns are based on the mean numbers of referrals for the past six mo
 # Inputs:
 # arrs - dataframe arrivals on each data for each pathway and location
 # Outputs:
-# arr_plot - image with arrivals in each pathway and location for baseline or scenario
-arr_plots <- function(arrs){
-  
-  arr_plot <- ggplot(arrs, aes(x=date, y=arrivals))+
-    theme_bw()+
-    ylab("Daily referrals")+
-    labs(fill="Scenario")+
+# arr_plot - image with arrivals in each pathway and location for baseline or
+# scenario
+arr_plots <- function(arrs) {
+  arr_plot <- ggplot(arrs, aes_string(x = "date", y = "arrivals")) +
+    theme_bw() +
+    ylab("Daily referrals") +
+    labs(fill = "Scenario") +
     geom_line(aes(color = name))
-    
-  return(arr_plot) 
-  }
+  return(arr_plot)
+}
 
-# AMY: Currently depends on prior scripts - do we want to be able to run independently?
+# AMY: Currently depends on prior scripts - do we want to be able to run
+# independently?
 
 # Create baseline arrivals plot using arr_plots()
 arrivals_all$name <- paste0(arrivals_all$node, "_", arrivals_all$scenario)
-Barr <- arrivals_all %>% filter(grepl("BArr", name))
-arr_plots(Barr)
+barr <- arrivals_all %>% filter(grepl("BArr", name))
+arr_plots(barr)
 ```
 
   * **S1Arr** *Scenario 1 referrals*  
 ```{r SArr-plot, warning=FALSE, eval=TRUE, echo=FALSE, fig.height=4, fig.width=8}
 # Create scenario arrivals plot using arr_plots()
-Sarr <- arrivals_all %>% filter(grepl("S1Arr", name))
-arr_plots(Sarr)
+sarr <- arrivals_all %>% filter(grepl("S1Arr", name))
+arr_plots(sarr)
 ```
 \newpage
 ```{r table}
@@ -103,7 +104,7 @@ arr_plots(Sarr)
 info_table_cap <- capacity %>%
   select(node, scenario, capacity) %>%
   pivot_wider(names_from = "scenario", values_from = "capacity") %>%
-  mutate(S1Cap = replace(S1Cap, S1Cap=="2000", "Unrestricted"))
+  mutate(S1Cap = replace(S1Cap, S1Cap == "2000", "Unrestricted"))
 
 info_table_los <- losA %>%
   select(node, scenario, mean_los) %>%
@@ -132,20 +133,26 @@ info_table_ft
 # Process data so it can be used for plotting
 
 # CHANGES:
-# - Removed "today" line from plots as it is confusing, since lines would typically seperate real data from simulated data
+# - Removed "today" line from plots as it is confusing, since lines would
+# typically seperate real data from simulated data
 # - Removed auto_parameters_loc code as no longer used
-# - Created function to perform repetitive operation of creating pathway and location dataframes
-# - Incorporated pivot into that function, rather than doing it for each dataframe in the sections below
-# - Removed referral to input_file for headings, as that is not updated as dataframes are manually referred to in each section, changed to manual headings
-# - Removed objects a and b as hard coding of getting colnames to create objects that weren't used anywhere.
+# - Created function to perform repetitive operation of creating pathway and
+# location dataframes
+# - Incorporated pivot into that function, rather than doing it for each
+# dataframe in the sections below
+# - Removed referral to input_file for headings, as that is not updated as
+# dataframes are manually referred to in each section, changed to manual
+# headings
+# - Removed objects a and b as hard coding of getting colnames to create objects
+# that weren't used anywhere.
 
 # Convert date columns to Date format
 bed_data$date <- as.Date(bed_data$date)
 visit_data$date <- as.Date(visit_data$date)
 
 # Set colour palette (just 12 colours as should not run more than 12 scenarios)
-cbPalette <- c("#FF0F0F", "#FF7E01", "#DDDD00", "#01FF01", 
-               "#007540", "#83FFFF", "#007CFF", "#7900FF", 
+cbpalette <- c("#FF0F0F", "#FF7E01", "#DDDD00", "#01FF01",
+               "#007540", "#83FFFF", "#007CFF", "#7900FF",
                "#FF70FF", "#000000", "#818181", "#9A6B3F")
 
 # Function aim:
@@ -158,13 +165,13 @@ cbPalette <- c("#FF0F0F", "#FF7E01", "#DDDD00", "#01FF01",
 # path_loc - string with pathway and location (e.g. "P1_LocA")
 # Output:
 # sim_res_subset - subset of sim_res dataframe
-create_plot_df <- function(sim_res, path_loc){
+create_plot_df <- function(sim_res, path_loc) {
   sim_res_subset <- sim_res %>%
     select(date, contains(path_loc)) %>%
     rename_with(~ str_remove(., paste0(path_loc, "_")), everything()) %>%
     pivot_longer(cols = !date,
                  names_sep = "__",
-                 values_to = 'value',
+                 values_to = "value",
                  names_to = c("scenario", "measure"))
   return(sim_res_subset)
 }
@@ -172,13 +179,17 @@ create_plot_df <- function(sim_res, path_loc){
 
 ```{r format-plot,warning=FALSE, eval=TRUE, echo=FALSE}
 # CHANGE:
-# - Removed commented out part to create horizontal line as that is not used anymore (as today's line is misleading as typically would differentiate real and simulated data)
+# - Removed commented out part to create horizontal line as that is not used
+# anymore (as today's line is misleading as typically would differentiate real
+# and simulated data)
 # - Simplified generation of scenario labels
 # - Simplified recoding
-# - Tried adding capacity line, get error that it appears in 2nd plot for some of them, also axis boundary problems
+# - Tried adding capacity line, get error that it appears in 2nd plot for some
+# of them, also axis boundary problems
 
 # NOT CHANGE:
-# recode() has been superseded by case_match() BUT only in recent dplyr so leave as recode() for now so works with old versions
+# recode() has been superseded by case_match() BUT only in recent dplyr so
+# leave as recode() for now so works with old versions
 
 # Function to generate plots for each locality
 # Refers to capacity dataframe to add line indicating capacity
@@ -189,11 +200,13 @@ create_plot_df <- function(sim_res, path_loc){
 # plot - tbc
 plots <- function(pathway_data, path_loc) {
   # # Extract capacity for baseline and scenario
-  # # AMY: depends on capacity, which is imported by model script. Also a bit repetitive. Could do with label.
+  # # AMY: depends on capacity, which is imported by model script. Also a bit
+  # repetitive. Could do with label.
   # bcap_line <- as.numeric(
   #   capacity[capacity$node==path_loc & capacity$scenario=="BCap", "capacity"])
   # s1cap_line <- as.numeric(
-  #   capacity[capacity$node==path_loc & capacity$scenario=="S1Cap", "capacity"])
+  # capacity[capacity$node==path_loc & capacity$scenario=="S1Cap",
+  #          "capacity"])
   # 
   # # Create dataframe including faceting variables with intercept
   # # If capacity line is 2000, this is infinite capacity, so do not plot
@@ -205,7 +218,8 @@ plots <- function(pathway_data, path_loc) {
   
   # Create plots
   plot <- pathway_data %>%
-    mutate(measure = factor(measure, levels = c("occ", "niq", "wait", "cost"))) %>%
+    mutate(measure = factor(measure,
+                            levels = c("occ", "niq", "wait", "cost"))) %>%
     mutate(measure = recode(measure,
                             occ = "Mean patients in service",
                             niq = "Mean patients delayed in the acute",
@@ -214,7 +228,7 @@ plots <- function(pathway_data, path_loc) {
     ggplot(aes(x = date, y = value,
                color = factor(scenario)), linetype = factor(scenario)) +
     scale_colour_manual(labels = paste0("Scenario ", 1:12),
-                        values = cbPalette) +
+                        values = cbpalette) +
     theme_bw() +
     theme(
       panel.border = element_rect(fill = NA,
@@ -239,8 +253,9 @@ plots <- function(pathway_data, path_loc) {
 }
 
 # Function to create plot df and then plot
-# AMY: Could combine those two functions rather than have seperate to run them? But might get confusing having all in one?
-create_plot <- function(sim_res, path_loc){
+# AMY: Could combine those two functions rather than have seperate to run them?
+# But might get confusing having all in one?
+create_plot <- function(sim_res, path_loc) {
   plot_df <- create_plot_df(sim_res, path_loc)
   plots(plot_df, path_loc)
 }
