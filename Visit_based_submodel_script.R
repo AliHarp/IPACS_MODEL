@@ -128,16 +128,14 @@ for (z in 1:length(visit_pathway_vector)) {
     patients_inqueue <- create_patient_df(nrow = visit_init_q[[z]])
     patients <- create_patient_df(nrow = (sim_length + warmup) * 2)
     
-    npat <- 0 #initialising counter for patients dataframe
+    # Initialising counter for patients dataframe
+    npat <- 0
     
-    #list with required visit vectors for each patient
+    # List with required visit vectors for each patient
     req_visits <- list()
     
-    #resources
-    resources <-
-      matrix(nrow = (sim_length + warmup) * 10, ncol = 1) #times 2 to make the calculations for resources work at the end of the simulation
-    
-    resources[, ] <- n_slots[z]
+    # Create resources - *10 to make it sufficiently large
+    resources <- matrix(data = n_slots[z], nrow = (sim_length+warmup)*10)
     
     #vector for storing waiting time, kept for each patient who left the system
     waittime_vec <- data.frame(
@@ -148,32 +146,50 @@ for (z in 1:length(visit_pathway_vector)) {
       waittime = integer(),
       stringsAsFactors = T
     )
+    
     id <- 0
     t <- 1
-    #creating set of initial condition patients that are already in the system at day 1.
+    
+    # Creating set of initial condition patients that are already in the
+    # system at day 1 (i.e. patients already in P1)
     for (j in 1:visit_init_occ[[z]]) {
       id <- id + 1
       npat <- npat + 1
       los <- dis_los2()
-      templos <-
-        dis_los() #for determining visit seq of those already in service
+      templos <- dis_los()
       arrival_time <- t
       exit <- FALSE
-      patients_initial[npat,] <-
-        c(id, los, arrival_time, NA, NA, 0, exit)
       
-      #initial slots and creating required visits vector
+      # AMY: had suggested change for this but wasn't happy with it
+      patients_initial$id[npat] <- id
+      patients_initial$los[npat] <- los
+      patients_initial$arrival_time[npat] <- arrival_time
+      patients_initial$start_service[npat] <- NA
+      patients_initial$end_service[npat] <- NA
+      patients_initial$wait_time[npat] <- 0
+      patients_initial$exit[npat] <- exit
+      
       init_slots <- dis_init_slots()
       end_slots <- dis_end_slots()
-      temp_visit_vector <-
-        round(seq(init_slots, end_slots, length.out = templos)) #full visit seq
-      visit_vector <- seq(rev(rev(temp_visit_vector[1])),
-                          rev(temp_visit_vector[length(los)])) #truncate to new LoS
+      
+      # Want people already in system have shorter LOS and start from later
+      # than init_slots - hence templos and los. LOS from dislos2() is a
+      # shorter version, so get those
+      # Create sequence from init_slots (initial number of visits) to
+      # end_slots (final number of visits) of length templos (larger LOS)
+      # Then get tail of that sequence, length of LOS (shorter LOS)
+      # e.g. temp vector: 4 4 4 3 3 3 3 2 2 2 2 2 1 1 1
+      # final vector : 2 1 1 1
+      temp_visit_vector <- round(seq(from = init_slots,
+                                     to = end_slots,
+                                     length.out = templos))
+      visit_vector <- tail(temp_visit_vector, los)
+      
       req_visits[[id]] <- visit_vector
       
       #planning service, checking resources
-      tt <-
-        t #temporary t for incrementing when no resources available
+      #temporary t for incrementing when no resources available
+      tt <- t 
       
       while (is.na(patients_initial$start_service[npat]) == TRUE) {
         if (all((resources[((tt):((tt) + patients_initial$los[npat] - 1)), ] >= req_visits[[id]]) ==
