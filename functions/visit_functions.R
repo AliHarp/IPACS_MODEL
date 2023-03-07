@@ -126,6 +126,29 @@ create_wait_df <- function(){
 }
 
 
+check_resources <- function(df){
+  # Planning service, check resources
+  # Create temporary t for incrementing when no resources available
+  tt <- t
+  # Create adjusted LOS
+  los_adj <- df$los[npat] - 1
+  # While start_service = NA
+  while (is.na(df$start_service[npat]) == TRUE) {
+    # If resources columns (from tt to LOS-1) are >= req_visits
+    if (all(resources[tt:(tt + los_adj), ] >= req_visits[[id]]) == TRUE) {
+      df$start_service[npat] <- tt
+      df$end_service[npat] <- tt + los_adj
+      # Decrease capacity
+      resources[tt:(tt + los_adj), ] <- resources[tt:(tt + los_adj), ] - req_visits[[id]]
+    } else {
+      # If no sufficient resources, check for starting on the next day
+      tt <- tt + 1
+    }
+  }
+  return(list(df, resources))
+}
+
+
 # # Save information to patients dataframe
 # save_patient_info <- function(df, npat, id, los, arrival_time,
 #                               start_service, end_service, wait_time,

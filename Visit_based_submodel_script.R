@@ -168,26 +168,12 @@ for (z in 1:length(visit_pathway_vector)) {
       patients_initial$end_service[npat] <- NA
       patients_initial$wait_time[npat] <- 0
       patients_initial$exit[npat] <- FALSE
-
-      # Planning service, check resources
-      # Create temporary t for incrementing when no resources available
-      tt <- t
-
-      # Create adjusted LOS
-      los_adj <- patients_initial$los[npat] - 1
-      # While start_service = NA
-      while (is.na(patients_initial$start_service[npat]) == TRUE) {
-        # If resources columns (from tt to LOS-1) are >= req_visits
-        if (all(resources[tt:(tt + los_adj), ] >= req_visits[[id]]) == TRUE) {
-          patients_initial$start_service[npat] <- tt
-          patients_initial$end_service[npat] <- tt + los_adj
-          # Decrease capacity
-          resources[tt:(tt + los_adj), ] <- resources[tt:(tt + los_adj), ] - req_visits[[id]]
-        } else {
-          # If no sufficient resources, check for starting on the next day
-          tt <- tt + 1
-        }
-      }
+      
+      # Run function, and replace patients df and resources with objects
+      # from the function (as function couldn't output individual objects)
+      resources_list <- check_resources(df = patients_initial)
+      patients_initial <- resources_list[[1]]
+      resources <- resources_list[[2]]
     }
     
     # Increment ent_sys
@@ -200,12 +186,14 @@ for (z in 1:length(visit_pathway_vector)) {
       id <- id + 1
       npat <- npat + 1
       
-      # Find LOS and create visit_vector
+      # Find LOS and required visits
       los <- dis_los()
       init_slots <- dis_init_slots()
       end_slots <- dis_end_slots()
       visit_vector <-
-        round(seq(init_slots, end_slots, length.out = los)) #full visit seq
+        round(seq(from = init_slots,
+                  to = end_slots,
+                  length.out = los)) #full visit seq
       req_visits[[id]] <- visit_vector
       
       # Save to patients_inqueue dataframe
@@ -220,74 +208,46 @@ for (z in 1:length(visit_pathway_vector)) {
       # patients_inqueue$wait_time[npat - ent_sys] <- 0
       # patients_inqueue$exit[npat - ent_sys] <- FALSE
       
-      #planning service, checking resources
-      tt <-
-        t #temporary t for incrementing when no resources available
-      while (is.na(patients_inqueue$start_service[npat]) == TRUE) {
-        if (all((resources[((tt):((tt) + patients_inqueue$los[npat] - 1)), ] >= req_visits[[id]]) ==
-                TRUE)) {
-          patients_inqueue$start_service[npat] <- tt
-          patients_inqueue$end_service[npat] <-
-            patients_inqueue$start_service[npat] + (patients_inqueue$los[npat] - 1)
-          
-          #decrease capacity
-          resources[((tt):((tt) + patients_inqueue$los[npat] - 1)), ] <-
-            resources[((tt):((tt) + patients_inqueue$los[npat] - 1)), ] - req_visits[[id]]
-        } else {
-          tt <-
-            tt + 1 #if no sufficient resources, check for starting on the next day
-        }
-      }
+      # Run function, and replace patients df and resources with objects
+      # from the function (as function couldn't output individual objects)
+      resources_list <- check_resources(df = patients_inqueue)
+      patients_inqueue <- resources_list[[1]]
+      resources <- resources_list[[2]]
     }
+    
     patients <- rbind(patients_initial, patients_inqueue, patients)
     ent_sys <- ent_sys + npat
     
-    #####simulation#####
-    #  id<-0
-    # t<-2
+    # Simulation
     for (t in 1:(sim_length + warmup)) {
-      #arrivals to service
+      # Arrivals to service
       narr <- round(rpois(1, arr_rates_visit_p1[t, z + 1]))
       if (narr > 0) {
         ent_sys <- ent_sys + narr
         
         #for each arrived patient
         for (j in 1:narr) {
+          # Increment ID and npat
           id <- id + 1
           npat <- npat + 1
-          los <- dis_los()
-          arrival_time <- t
-          exit <- FALSE
-          patients[npat,] <- c(id, los, arrival_time, NA, NA, 0, exit)
           
-          #initial slots and creating required visits vector
+          # Find LOS and required visits
+          los <- dis_los()
           init_slots <- dis_init_slots()
           end_slots <- dis_end_slots()
-          visit_vector <-
-            round(seq(init_slots, end_slots, length.out = los))
-          
+          visit_vector <- round(seq(from = init_slots,
+                                    to = end_slots,
+                                    length.out = los))
           req_visits[[id]] <- visit_vector
           
-          #planning service, checking resources
-          tt <-
-            t #temporary t for incrementing when no resources available
+          # Save information to patients dataframe
+          patients[npat,] <- c(id, los, t, NA, NA, 0, FALSE)
           
-          while (is.na(patients$start_service[npat]) == TRUE) {
-            print((tt):((tt) + patients$los[npat] - 1))
-            if (all((resources[((tt):((tt) + patients$los[npat] - 1)), ] >= req_visits[[id]]) ==
-                    TRUE)) {
-              patients$start_service[npat] <- tt
-              patients$end_service[npat] <-
-                patients$start_service[npat] + (patients$los[npat] - 1)
-              
-              #decrease capacity
-              resources[((tt):((tt) + patients$los[npat] - 1)), ] <-
-                resources[((tt):((tt) + patients$los[npat] - 1)), ] - req_visits[[id]]
-            } else {
-              tt <-
-                tt + 1 #if no sufficient resources, check for starting on the next day
-            }
-          }
+          # Run function, and replace patients df and resources with objects
+          # from the function (as function couldn't output individual objects)
+          resources_list <- check_resources(df = patients)
+          patients <- resources_list[[1]]
+          resources <- resources_list[[2]]
         }
       }
       
