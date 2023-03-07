@@ -42,11 +42,11 @@ dis_los <- function() {
 }
 
 
-dis_los2 <- function() {
+dis_los2 <- function(long_los) {
+  # long_los is output from dis_los()
   # Samples from length of stay distribution, then samples between 1 and
   # that value, to reduce length of stay, for patients already in service
-  sample_los <- dis_los()
-  x <- round(runif(n = 1, min = 1, max = sample_los))
+  x <- round(runif(n = 1, min = 1, max = long_los))
   return(as.integer(x))
 }
 

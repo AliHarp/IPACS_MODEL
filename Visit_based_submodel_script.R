@@ -135,10 +135,8 @@ for (z in 1:length(visit_pathway_vector)) {
       id <- id + 1
       npat <- npat + 1
 
-      # Get LOS using dis_los2() (so it is shorter than usual)
-      los <- dis_los2()
-
       # Create temporary LOS using dis_los() (so it is longer)
+      # Then get shorter LOS using dis_los2() which trims the templos
       # Then get end_slots (final number of visits) and init_slots (initial
       # number). Create sequence, then sample from tail for length of the
       # shorter LOS. This means patients already in system have a shorter LOS
@@ -148,6 +146,7 @@ for (z in 1:length(visit_pathway_vector)) {
       # temp vector: 4 4 4 3 3 3 3 2 2 2 2 2 1 1 1
       # final vector: 2 1 1 1
       templos <- dis_los()
+      los <- dis_los2(templos)
       init_slots <- dis_init_slots()
       end_slots <- dis_end_slots()
       temp_visit_vector <- round(seq(from = init_slots,
@@ -155,10 +154,6 @@ for (z in 1:length(visit_pathway_vector)) {
                                      length.out = templos))
       visit_vector <- tail(temp_visit_vector, los)
       req_visits[[id]] <- visit_vector
-
-      # AMY: NEED to change this, so that los and templos both use same
-      # dis_los(), otherwise you can end up with the one that is supposed
-      # to be shorter actually being longer - make one input for other
 
       # Save information about patient (arrival time is t, exit is FALSE)
       patients_initial$id[npat] <- id
@@ -220,12 +215,14 @@ for (z in 1:length(visit_pathway_vector)) {
     
     # Simulation
     for (t in 1:(sim_length + warmup)) {
-      # Arrivals to service
-      narr <- round(rpois(1, arr_rates_visit_p1[t, z + 1]))
+      # Sample from poisson distribution to get number of arrivals
+      # t is the day, and z+1 is the appropriate pathway/location/scenario
+      narr <- round(rpois(n = 1,
+                          lambda = as.numeric(arr_rates_visit_p1[t, z + 1])))
+      
       if (narr > 0) {
         ent_sys <- ent_sys + narr
-        
-        #for each arrived patient
+        # For each arrived patient
         for (j in 1:narr) {
           # Increment ID and npat
           id <- id + 1
@@ -241,6 +238,7 @@ for (z in 1:length(visit_pathway_vector)) {
           req_visits[[id]] <- visit_vector
           
           # Save information to patients dataframe
+          # AMY: change to clearer, issue of blank rows again
           patients[npat,] <- c(id, los, t, NA, NA, 0, FALSE)
           
           # Run function, and replace patients df and resources with objects
