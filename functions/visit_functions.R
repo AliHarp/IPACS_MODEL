@@ -93,3 +93,49 @@ create_patient_df <- function(nrow){
   df[nrow,] <- NA
   return(df)
 }
+
+
+create_output_df <- function(nrow){
+  # Create blank dataframe for output for visit simulation after warm-up
+  df <- data.frame(
+    RUNX = integer(), # Run number x
+    node = character(), # Scenario
+    day = integer(), # Output per day
+    q_length = integer(), # Number of patients in queue
+    n_slots_used = numeric(),
+    patients_in_service = numeric(),
+    res_used = numeric(), # Used slots
+    res_idle = numeric(), # Idle slots
+    in_sys = numeric()) # Number of patients in system
+  df[nrow,] <- NA
+  return(df)
+}
+
+
+create_wait_df <- function(){
+  # Create blank dataframe to store wait times
+  df <- data.frame(
+    RUNX = integer(),
+    day_ = integer(),
+    scen_ = character(),
+    start_service = integer(),
+    waittime = integer(),
+    stringsAsFactors = T
+  )
+  return(df)
+}
+
+
+# # Save information to patients dataframe
+# save_patient_info <- function(df, npat, id, los, arrival_time,
+#                               start_service, end_service, wait_time,
+#                               exit){
+#   df$id[npat] <- id
+#   df$los[npat] <- los
+#   df$arrival_time[npat] <- arrival_time
+#   df$start_service[npat] <- start_service
+#   df$end_service[npat] <- end_service
+#   df$wait_time[npat] <- wait_time
+#   df$exit[npat] <- exit
+#   return(df)
+# }
