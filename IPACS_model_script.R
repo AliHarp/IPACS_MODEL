@@ -1,5 +1,3 @@
-# CHANGE: Changed to library (as stops if there is error, but require runs)
-# CHANGE: Removed install.packages() as all should be present with renv
 library(doSNOW)
 library(foreach)
 library(tidyverse, warn.conflicts = FALSE)
@@ -12,20 +10,12 @@ library(here)
 rm(list = ls())
 wd <- setwd("~/Documents/IPACS_MODEL")
 
-# CHANGE: Moved to top of file (as that's where you should put parameters you
-# can change)
 # Set model parameters (standard deviation for length of stay distribution,
 # and number of runs for simulation)
-# CHANGE: rename nruns_all as nruns. set as integer.
-# Therefore not needing nruns_p1 (nruns_p1 <- as.integer(nruns_all)) or
-# need nruns (nruns <- as.integer(nruns_all))
 sd_los <- 3 #no info on sd - estimate provided
 nruns <- as.integer(5)
 
-# Import model parameters
-# CHANGE: Input file now generated manually, so changed to manually input of
-# filename
-# CHANGE: Create list of (1) dataframes to create, and (2) sheets to import from
+# Create list of (1) dataframes to create, and (2) sheets to import from
 # Then import each sheet and save to the relevant dataframe
 # Use "here" package to create relative file path that works on all systems
 # (i.e. no backslashes)
@@ -41,14 +31,8 @@ for (x in input_list){
 }
 
 # Set run time as the number of unique dates in arrivals (used in visit-based)
-# CHANGE: was run_time then convert to integer to make sim_length - removed the
-# middle step
 sim_length <- as.integer(length(unique(arrivals_all$date)))
 
-# CHANGE: made dplyr operations so it was clearer what was happening
-# Would need further work to simplify further (is a bit repetitive still)
-# Need to be sure that nothing incorrect is being used due to how it is being
-# created with distinct
 # Create scenarios
 scenarios <- list(arrivals_all %>%
                     rename(sc_arr = scenario) %>%
