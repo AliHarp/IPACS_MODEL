@@ -112,9 +112,10 @@ for (z in 1:length(visit_pathway_vector)) {
     
     # Create necessary data structures
     # Captures output after warmup
+    # CHANGE: Removed patients_initial and patients_inqueue, as they are
+    # redundant as you add rows with npat which increments, and as you
+    # ultimately just bind them with patients anyway
     output <- create_output_df(nrow = sim_length)
-    patients_initial <- create_patient_df(nrow = visit_init_occ[[z]])
-    patients_inqueue <- create_patient_df(nrow = visit_init_q[[z]])
     patients <- create_patient_df(nrow = (sim_length + warmup) * 2)
     # Stores wait times for patients who leave system
     waittime_vec <- create_wait_df()
@@ -156,18 +157,18 @@ for (z in 1:length(visit_pathway_vector)) {
       req_visits[[id]] <- visit_vector
 
       # Save information about patient (arrival time is t, exit is FALSE)
-      patients_initial$id[npat] <- id
-      patients_initial$los[npat] <- los
-      patients_initial$arrival_time[npat] <- t
-      patients_initial$start_service[npat] <- NA
-      patients_initial$end_service[npat] <- NA
-      patients_initial$wait_time[npat] <- 0
-      patients_initial$exit[npat] <- FALSE
+      patients$id[npat] <- id
+      patients$los[npat] <- los
+      patients$arrival_time[npat] <- t
+      patients$start_service[npat] <- NA
+      patients$end_service[npat] <- NA
+      patients$wait_time[npat] <- 0
+      patients$exit[npat] <- FALSE
       
       # Run function, and replace patients df and resources with objects
       # from the function (as function couldn't output individual objects)
-      resources_list <- check_resources(df = patients_initial)
-      patients_initial <- resources_list[[1]]
+      resources_list <- check_resources(df = patients)
+      patients <- resources_list[[1]]
       resources <- resources_list[[2]]
     }
     
@@ -192,25 +193,16 @@ for (z in 1:length(visit_pathway_vector)) {
       req_visits[[id]] <- visit_vector
       
       # Save to patients_inqueue dataframe
-      # AMY: Currently it's saving based on npat, so leaving like
-      # 93 blank rows then starting after that
-      patients_inqueue[npat,] <- c(id, los, t, NA, NA, 0, FALSE)
-      # patients_inqueue$id[npat - ent_sys] <- id
-      # patients_inqueue$los[npat - ent_sys] <- los
-      # patients_inqueue$arrival_time[npat - ent_sys] <- t
-      # patients_inqueue$start_service[npat - ent_sys] <- NA
-      # patients_inqueue$end_service[npat - ent_sys] <- NA
-      # patients_inqueue$wait_time[npat - ent_sys] <- 0
-      # patients_inqueue$exit[npat - ent_sys] <- FALSE
+      # AMY: Need to make clearer
+      patients[npat,] <- c(id, los, t, NA, NA, 0, FALSE)
       
       # Run function, and replace patients df and resources with objects
       # from the function (as function couldn't output individual objects)
-      resources_list <- check_resources(df = patients_inqueue)
-      patients_inqueue <- resources_list[[1]]
+      resources_list <- check_resources(df = patients)
+      patients <- resources_list[[1]]
       resources <- resources_list[[2]]
     }
     
-    patients <- rbind(patients_initial, patients_inqueue, patients)
     ent_sys <- ent_sys + npat
     
     # Simulation
@@ -240,7 +232,7 @@ for (z in 1:length(visit_pathway_vector)) {
           req_visits[[id]] <- visit_vector
           
           # Save information to patients dataframe
-          # AMY: change to clearer, issue of blank rows again
+          # AMY: Need to make clearer
           patients[npat,] <- c(id, los, t, NA, NA, 0, FALSE)
           
           # Run function, and replace patients df and resources with objects
