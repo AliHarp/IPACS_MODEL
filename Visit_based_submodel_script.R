@@ -3,7 +3,6 @@
 source(here("functions", "visit_functions.R"))
 
 # Manual parameters
-# CHANGE: Moved to top of file (as manually input)
 # ISR/IVR = initial service/visit rate
 # ESR/FVR = end service rate/final visit rate
 # AMY: Need to standardise names (ISR/IVR) (ESR/FVR/endSR)
@@ -14,7 +13,6 @@ SEED <- 1
 warmup <- 0
 
 # Extract visit-based scenarios (P1) from imported dataframes
-# CHANGE: To reduce repetitive operations
 df_list <- list(list("visit_scenarios", scenarios),
                 list("arr_scenarios_v", arr_scenarios),
                 list("costs_visit", costs))
@@ -31,7 +29,6 @@ visit_cap <- as.integer(as.list(visit_scenarios$capacity))
 visit_loss <- as.list(rep(0, nrow(visit_scenarios)))
 
 # If you have a log-normal distribution for length of stay
-# CHANGE: Simplified
 # AMY: could change mu and sigma to mean and SD to be consistent with language
 # AMY: could provide better column labels
 visit_srv_params <- visit_scenarios %>%
@@ -42,7 +39,8 @@ visit_srv_params <- visit_scenarios %>%
   data.frame() %>%
   as.list()
 
-# if norm, AMY: Provide more descriptive comment (once certain on what this
+# if norm
+# AMY: Provide more descriptive comment (once certain on what this
 # means)
 # AMY: Not sure why round down the mean length of stay to an integer
 # (e.g. mean_los[85] 18.7 goes to 18)
@@ -58,14 +56,12 @@ arr_rates_visit_p1 <- arr_scenarios_v %>%
   arrange(date)
 
 # Create vector with each scenario name
-# CHANGE: no hard coding of data column
 # AMY: dput prints to screen, without it is same object, presume that print is
 # needed
 visit_pathway_vector <- dput(colnames(arr_rates_visit_p1 %>% select(-date)))
 
 # Set the minimum and maximum length of stay (LOS) and initial service rate
 # (ISR)
-# CHANGE: removed conversion to list as not required
 # AMY: concerned that it is replacing value of objects rather than making new
 # AMY: need to understand why these are min and max LOS and ISR (as title was from existing script)
 # AMY: change to snake_case
@@ -132,44 +128,13 @@ for (z in 1:length(visit_pathway_vector)) {
     # Creating set of initial condition patients that are already in the
     # system at day 1 (i.e. patients already in P1)
     for (j in 1:visit_init_occ[[z]]) {
-      # Increment ID and npat
-      id <- id + 1
-      npat <- npat + 1
-
-      # Create temporary LOS using dis_los() (so it is longer)
-      # Then get shorter LOS using dis_los2() which trims the templos
-      # Then get end_slots (final number of visits) and init_slots (initial
-      # number). Create sequence, then sample from tail for length of the
-      # shorter LOS. This means patients already in system have a shorter LOS
-      # and start from a later point that init_slots.
-      # Then save vector of required visits
-      # e.g.
-      # temp vector: 4 4 4 3 3 3 3 2 2 2 2 2 1 1 1
-      # final vector: 2 1 1 1
-      templos <- dis_los()
-      los <- dis_los2(templos)
-      init_slots <- dis_init_slots()
-      end_slots <- dis_end_slots()
-      temp_visit_vector <- round(seq(from = init_slots,
-                                     to = end_slots,
-                                     length.out = templos))
-      visit_vector <- tail(temp_visit_vector, los)
-      req_visits[[id]] <- visit_vector
-
-      # Save information about patient (arrival time is t, exit is FALSE)
-      patients$id[npat] <- id
-      patients$los[npat] <- los
-      patients$arrival_time[npat] <- t
-      patients$start_service[npat] <- NA
-      patients$end_service[npat] <- NA
-      patients$wait_time[npat] <- 0
-      patients$exit[npat] <- FALSE
-      
-      # Run function, and replace patients df and resources with objects
-      # from the function (as function couldn't output individual objects)
-      resources_list <- check_resources(df = patients)
-      patients <- resources_list[[1]]
-      resources <- resources_list[[2]]
+      # Run add_patient, then save to objects from that output list
+      add_patient_output <- add_patient(in_system=TRUE)
+      id <- add_patient_output[[1]]
+      npat <- add_patient_output[[2]]
+      req_visits <- add_patient_output[[3]]
+      patients <- add_patient_output[[4]]
+      resources <- add_patient_output[[5]]
     }
     
     # Increment ent_sys
@@ -179,7 +144,7 @@ for (z in 1:length(visit_pathway_vector)) {
     # into P1
     for (j in 1:visit_init_q[[z]]) {
       # Run add_patient, then save to objects from that output list
-      add_patient_output <- add_patient()
+      add_patient_output <- add_patient(in_system=FALSE)
       id <- add_patient_output[[1]]
       npat <- add_patient_output[[2]]
       req_visits <- add_patient_output[[3]]
@@ -204,33 +169,13 @@ for (z in 1:length(visit_pathway_vector)) {
         
         # For each arrived patient
         for (j in 1:narr) {
-          # Increment ID and npat
-          id <- id + 1
-          npat <- npat + 1
-          
-          # Find LOS and required visits
-          los <- dis_los()
-          init_slots <- dis_init_slots()
-          end_slots <- dis_end_slots()
-          visit_vector <- round(seq(from = init_slots,
-                                    to = end_slots,
-                                    length.out = los))
-          req_visits[[id]] <- visit_vector
-          
-          # Save information to patients dataframe
-          patients$id[npat] <- id
-          patients$los[npat] <- los
-          patients$arrival_time[npat] <- t
-          patients$start_service[npat] <- NA
-          patients$end_service[npat] <- NA
-          patients$wait_time[npat] <- 0
-          patients$exit[npat] <- FALSE
-          
-          # Run function, and replace patients df and resources with objects
-          # from the function (as function couldn't output individual objects)
-          resources_list <- check_resources(df = patients)
-          patients <- resources_list[[1]]
-          resources <- resources_list[[2]]
+          # Run add_patient, then save to objects from that output list
+          add_patient_output <- add_patient(in_system=FALSE)
+          id <- add_patient_output[[1]]
+          npat <- add_patient_output[[2]]
+          req_visits <- add_patient_output[[3]]
+          patients <- add_patient_output[[4]]
+          resources <- add_patient_output[[5]]
         }
       }
       
