@@ -14,5 +14,6 @@ diffdf::diffdf(visit_new, visit_test)
 # Linting
 lint("IPACS_model_script.R")
 lint("Visit_based_submodel_script.R")
+lint("functions/visit_functions.R")
 lint("Bed_based_submodel_script.R")
 lint("rmdscript_ipacs_V3.Rmd")
