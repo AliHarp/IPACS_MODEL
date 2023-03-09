@@ -6,10 +6,9 @@ source(here("functions", "visit_functions.R"))
 # ISR/IVR = initial service/visit rate
 # ESR/FVR = end service rate/final visit rate
 # AMY: Need to standardise names (ISR/IVR) (ESR/FVR/endSR)
-# AMY: change to snake_case
-sd_ISR <- 0.5
-sd_ESR <- 0.5
-SEED <- 1
+sd_isr <- 0.5
+sd_esr <- 0.5
+temp_seed <- 1
 warmup <- 0
 
 # Extract visit-based scenarios (P1) from imported dataframes
@@ -63,15 +62,16 @@ visit_pathway_vector <- dput(colnames(arr_rates_visit_p1 %>% select(-date)))
 # Set the minimum and maximum length of stay (LOS) and initial service rate
 # (ISR)
 # AMY: concerned that it is replacing value of objects rather than making new
-# AMY: need to understand why these are min and max LOS and ISR (as title was from existing script)
+# AMY: need to understand why these are min and max LOS and ISR (as title was
+# from existing script)
 # AMY: change to snake_case
 ISR <- as.integer(visit_scenarios$IVR)
 endSR <- as.integer(visit_scenarios$FVR)
 
-# Create lists with sd_ISR or sd_ESR repeated for number of visit scenarios
+# Create lists with sd_isr or sd_esr repeated for number of visit scenarios
 # AMY: change to snake_case
-sd_ISR <- as.double(rep(sd_ISR, nrow(visit_scenarios)))
-sd_ESR <- as.double(rep(sd_ESR, nrow(visit_scenarios)))
+sd_isr <- as.double(rep(sd_isr, nrow(visit_scenarios)))
+sd_esr <- as.double(rep(sd_esr, nrow(visit_scenarios)))
 
 
 # Create n_slots, the number of visit slots available per day
@@ -89,29 +89,29 @@ for (z in 1:length(visit_pathway_vector)) {
   cl <- parallel::makeCluster(1)
   registerDoSNOW(cl)
   run <- 1
-  
+
   # Use foreach() to repeat operation for each run
   results <- foreach(run = 1:nruns, .combine = "rbind") %dopar% {
-    set.seed(nruns * (SEED - 1) + run)
-    
+    set.seed(nruns * (temp_seed - 1) + run)
+
     # Output variables
     ent_sys <- 0 # number of entities that entered the system
     left_sys <- 0 # number of entities that left the system
-    
+
     # Create necessary data structures
     # Captures output after warmup
     output <- create_output_df(nrow = sim_length)
     patients <- create_patient_df(nrow = (sim_length + warmup) * 10)
-    
+
     # Stores wait times for patients who leave system
     waittime_vec <- create_wait_df()
-    
+
     # List with required visit vectors for each patient
     req_visits <- list()
-    
+
     # Create resources, *10 to make it sufficiently large
-    resources <- matrix(data = n_slots[z], nrow = (sim_length+warmup)*10)
-    
+    resources <- matrix(data = n_slots[z], nrow = (sim_length + warmup) * 10)
+
     # Initialising counter for patients dataframe, plus ID and t (day)
     npat <- 0
     id <- 0
@@ -121,46 +121,46 @@ for (z in 1:length(visit_pathway_vector)) {
     # system at day 1 (i.e. patients already in P1)
     for (j in 1:visit_init_occ[[z]]) {
       # Run add_patient, then save to objects from that output list
-      add_patient_output <- add_patient(in_system=TRUE)
+      add_patient_output <- add_patient(in_system = TRUE)
       id <- add_patient_output[[1]]
       npat <- add_patient_output[[2]]
       req_visits <- add_patient_output[[3]]
       patients <- add_patient_output[[4]]
       resources <- add_patient_output[[5]]
     }
-    
+
     # Increment ent_sys
     ent_sys <- ent_sys + npat
-    
+
     # Create set of initial conditions for patients already waiting to go
     # into P1
     for (j in 1:visit_init_q[[z]]) {
       # Run add_patient, then save to objects from that output list
-      add_patient_output <- add_patient(in_system=FALSE)
+      add_patient_output <- add_patient(in_system = FALSE)
       id <- add_patient_output[[1]]
       npat <- add_patient_output[[2]]
       req_visits <- add_patient_output[[3]]
       patients <- add_patient_output[[4]]
       resources <- add_patient_output[[5]]
     }
-    
+
     ent_sys <- npat
-    
+
     # Simulation
     for (t in 1:(sim_length + warmup)) {
       # Sample from poisson distribution to get number of arrivals
       # t is the day, and z+1 is the appropriate pathway/location/scenario
       narr <- round(rpois(n = 1,
                           lambda = as.numeric(arr_rates_visit_p1[t, z + 1])))
-      
+
       # If there are arrivals...
       if (narr > 0) {
         ent_sys <- ent_sys + narr
-        
+
         # For each arrived patient
         for (j in 1:narr) {
           # Run add_patient, then save to objects from that output list
-          add_patient_output <- add_patient(in_system=FALSE)
+          add_patient_output <- add_patient(in_system = FALSE)
           id <- add_patient_output[[1]]
           npat <- add_patient_output[[2]]
           req_visits <- add_patient_output[[3]]
@@ -168,16 +168,16 @@ for (z in 1:length(visit_pathway_vector)) {
           resources <- add_patient_output[[5]]
         }
       }
-      
+
       # Find patients in queue, increment wait time column by one day
       in_q <- which((patients$start_service > t) & (patients$id > 0))
       if (length(in_q) > 0) {
         patients[in_q, "wait_time"] <- patients[in_q, "wait_time"] + 1
       }
-      
+
       # Recording output from the day warm up period has finished
       if (t > warmup) {
-        output[t - warmup,] <- c(
+        output[t - warmup, ] <- c(
           RUNX = run,
           node = visit_pathway_vector[z],
           day = t,
@@ -188,7 +188,7 @@ for (z in 1:length(visit_pathway_vector)) {
           res_used = 1 - (resources[t, ] / n_slots[z]),
           res_idle = resources[t, ] / n_slots[z],
           in_sys = (ent_sys - left_sys))
-        
+
         # Remove patients whose service has ended from the patients table
         remove <- which(patients$end_service == t)
         if (length(remove) > 0) {
@@ -208,26 +208,26 @@ for (z in 1:length(visit_pathway_vector)) {
       }
     }
     list <- list(output, resources, waittime_vec)
-    
+
     return(list)
   }
   stopCluster(cl)
-  
+
   # Extract results from above (contains results from each run)...
-  
+
   # results[,1] contains "output"
   out <- do.call(rbind, results[, 1]) %>%
     mutate_at(c("n_slots_used", "patients_in_service", "res_used",
                 "res_idle", "in_sys"), as.numeric) %>%
     mutate_at(c("RUNX", "day", "q_length"), as.integer)
-  
+
   # results[,2] contains "resources"
   res <- do.call(cbind, results[, 2])
   colnames(res) <- c(1:nruns)
-  
+
   # results[,3] contains "waittimes"
   wait <- do.call(rbind, results[, 3])
-  
+
   # Create dataframe for summary information from each run
   summary <- create_summary_df(nruns)
   summary$LOS <- 1 / visit_param_dist[[z]]
@@ -236,7 +236,7 @@ for (z in 1:length(visit_pathway_vector)) {
   summary$sim_length <- sim_length
   summary$warm_up <- warmup
   summary$capacity <- n_slots[z]
-    
+
   for (k in 1:nruns) {
     # Extract results for that run
     r.out <- which(out[, "RUNX"] == k)
@@ -249,7 +249,7 @@ for (z in 1:length(visit_pathway_vector)) {
     summary[k, "res_idle"] <- round(mean(out$res_idle[r.out]), 2)
     summary[k, "in_sys"] <- round(mean(out$in_sys[r.out]), 2)
   }
-  
+
   # Groups by day (e.g. day 1) and node (e.g. P1_B_BCap_Blos_Barr)
   # Finds average results for each day
   ts_output <- out %>%
@@ -263,29 +263,30 @@ for (z in 1:length(visit_pathway_vector)) {
       mean_res_used = mean(res_used)
     ) %>%
     ungroup()
-  
+
   # Create cost columns
   # Extract first two parts of the scenario (e.g. "P1_LocB"
   # dropping "BCap_Bloc_BArr")
-  loc <- sapply(ts_output$node, function(x)
-    paste(unlist(str_split(x, "_"))[1:2], collapse="_"))
-  
+  loc <- sapply(ts_output$node, function(x) {
+    paste(unlist(str_split(x, "_"))[1:2], collapse = "_")}
+    )
+
   # AMY:is there a simpler way of changing that scenario column
   # AMY: is cbind() to convert from tibble to dataframe? what is purpose?
   ts_output$node <- loc
   ts_output <- left_join(ts_output, costs_visit, by = "node") %>%
     mutate(cost = (niq * acute_dtoc) + (n_slots_used * community_cost))
   ts_output <- cbind(ts_output)
-  
+
   #waits by day
   ts_waits <- wait %>%
     group_by(day_, scen_) %>%
     summarise(wait = mean(waittime)) %>%
     ungroup()
-  
+
   # For each scenario:
   ts_output <- cbind(ts_output, ts_waits)
-  
+
   # Rowbind each scenario
   visits_based_output <- rbind(visits_based_output, ts_output)
 }
@@ -319,8 +320,8 @@ MeansOutput_v <- cbind(
 
 # Set column names
 colnames_v <- cbind(c("date",
-                      paste0(visit_pathway_vector,"__niq"), 
-                      paste0(visit_pathway_vector,"__occ"),
+                      paste0(visit_pathway_vector, "__niq"),
+                      paste0(visit_pathway_vector, "__occ"),
                       paste0(visit_pathway_vector, "__wait"),
                       paste0(visit_pathway_vector, "__cost")))
 colnames(MeansOutput_v) <- colnames_v
