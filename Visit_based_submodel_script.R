@@ -223,6 +223,7 @@ for (z in 1:length(visit_pathway_vector)) {
       # If there are arrivals...
       if (narr > 0) {
         ent_sys <- ent_sys + narr
+        
         # For each arrived patient
         for (j in 1:narr) {
           # Increment ID and npat
@@ -250,75 +251,43 @@ for (z in 1:length(visit_pathway_vector)) {
         }
       }
       
+      # BIG ISSUE!
+      # AMY: I think we could be overwriting patients, as when rbind above,
+      # first 93 rows of patients_in_queue is NA, and so when then add patients
+      # at npat, it creates an issue, so ID 93 to 131 get lost
+      
+      # Find patients in queue, increment wait time column by one day
       in_q <- which((patients$start_service > t) & (patients$id > 0))
       if (length(in_q) > 0) {
-        patients[in_q, 6] <- patients[in_q, 6] + 1
+        patients[in_q, "wait_time"] <- patients[in_q, "wait_time"] + 1
       }
-      #recording output from the day warm up period has finished
+      
+      # Recording output from the day warm up period has finished
       if (t > warmup) {
-        #only start recording after the warm up period
-        if (npat > 0 & nrow(waittime_vec) > 0) {
-          output[t - warmup,] <- c(
-            RUNX = run,
-            node = visit_pathway_vector[z],
-            day = t,
-            q_length = length(in_q),
-            n_slots_used = n_slots[z] - (resources[t, ]),
-            patients_in_service = (n_slots[z] - (resources[t, ])) /
-              (mean(c(
-                ISR[z], endSR[z]
-              ))),
-            res_used = 1 - (resources[t, ] / n_slots[z]),
-            res_idle = resources[t, ] / n_slots[z],
-            in_sys = (ent_sys - left_sys)
-          )
-          
-        } else if (npat > 0 & nrow(waittime_vec) == 0) {
-          output[t - warmup,] <- c(
-            RUNX = run,
-            node = visit_pathway_vector[z],
-            day = t,
-            q_length = length(in_q),
-            n_slots_used = n_slots[z] - (resources[t, ]),
-            patients_in_service = (n_slots[z] - (resources[t, ])) /
-              (mean(c(
-                ISR[z], endSR[z]
-              ))),
-            res_used = 1 - (resources[t, ] / n_slots[z]),
-            res_idle = resources[t, ] / n_slots[z],
-            in_sys = (ent_sys - left_sys)
-          )
-        } else {
-          output[t - warmup,] <- c(
-            RUNX = run,
-            node = visit_pathway_vector[z],
-            day = t,
-            q_length = length(in_q),
-            n_slots_used = n_slots[z] - (resources[t, ]),
-            patients_in_service = (n_slots[z] - (resources[t, ])) /
-              (mean(c(
-                ISR[z], endSR[z]
-              ))),
-            res_used = 1 - (resources[t, ] / n_slots[z]),
-            res_idle = resources[t, ] / n_slots[z],
-            in_sys = (ent_sys - left_sys)
-          )
-        }
+        # CHANGE: Removed three if else() as they all had the same action
+        output[t - warmup,] <- c(
+          RUNX = run,
+          node = visit_pathway_vector[z],
+          day = t,
+          q_length = length(in_q),
+          n_slots_used = n_slots[z] - (resources[t, ]),
+          patients_in_service = (n_slots[z] - (resources[t, ])) /
+            (mean(c(ISR[z], endSR[z]))),
+          res_used = 1 - (resources[t, ] / n_slots[z]),
+          res_idle = resources[t, ] / n_slots[z],
+          in_sys = (ent_sys - left_sys))
         
-        #remove patients whose service has ended from the patients table
+        # Remove patients whose service has ended from the patients table
         remove <- which(patients$end_service == t)
         if (length(remove) > 0) {
           if (t >= warmup) {
-            df <-
-              data.frame(
-                RUNX = run,
-                day_ = t,
-                scen_ = visit_pathway_vector[z],
-                start_service = patients$start_service[remove],
-                waittime = patients[remove, 6]
-              )
-            waittime_vec <-
-              rbind(waittime_vec, df) #keeping waiting time
+            df <- data.frame(
+              RUNX = run,
+              day_ = t,
+              scen_ = visit_pathway_vector[z],
+              start_service = patients$start_service[remove],
+              waittime = patients[remove, 6])
+            waittime_vec <- rbind(waittime_vec, df) #keeping waiting time
           }
           patients <- patients[-remove, ] #remove from patient list
           npat <- npat - length(remove)
