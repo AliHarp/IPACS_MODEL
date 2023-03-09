@@ -103,7 +103,7 @@ for (z in 1:length(visit_pathway_vector)) {
   run <- 1
   
   # Use foreach() to repeat operation for each run
-  RESULTS <- foreach(run = 1:nruns, .combine = "rbind") %dopar% {
+  results <- foreach(run = 1:nruns, .combine = "rbind") %dopar% {
     set.seed(nruns * (SEED - 1) + run)
     
     # Output variables
@@ -220,6 +220,7 @@ for (z in 1:length(visit_pathway_vector)) {
       narr <- round(rpois(n = 1,
                           lambda = as.numeric(arr_rates_visit_p1[t, z + 1])))
       
+      # If there are arrivals...
       if (narr > 0) {
         ent_sys <- ent_sys + narr
         # For each arrived patient
@@ -330,134 +331,127 @@ for (z in 1:length(visit_pathway_vector)) {
     return(list)
   }
   stopCluster(cl)
-  ###############################################
   
-  #creating dataframe for summary info
-  summary <- data.frame(
-    LOS = integer(nruns),
-    ISR = integer(nruns),
-    nruns = integer(nruns),
-    sim_length = integer(nruns),
-    warm_up = integer(nruns),
-    capacity = integer(nruns),
-    mean_wait = numeric(nruns),
-    q_length = numeric(nruns),
-    res_used = numeric(nruns),
-    res_idle = numeric(nruns),
-    in_sys = numeric(nruns)
-  )
+  # Extract results from above (contains results from each run)
+  # CHANGE: Simplified, removed some hard coding
+  # results[,1] contains "output"
+  out <- do.call(rbind, results[, 1]) %>%
+    mutate_at(c("n_slots_used", "patients_in_service", "res_used",
+                "res_idle", "in_sys"), as.numeric) %>%
+    mutate_at(c("RUNX", "day", "q_length"), as.integer)
   
-  #splitting up RESULTS list in 3
-  output <- RESULTS[, 1]
-  out <- do.call(rbind, output)
-  out[, c(5:9)] <- sapply(out[, c(5:9)], as.numeric)
-  out[, c(1, 3:4)] <- sapply(out[, c(1, 3:4)], as.integer)
-  #combining in one dataframe
-  
-  resources <- RESULTS[, 2]
-  res <- do.call(cbind, resources)
+  # results[,2] contains "resources"
+  res <- do.call(cbind, results[, 2])
   colnames(res) <- c(1:nruns)
   
-  waittimes <- RESULTS[, 3]
-  wait <- do.call(rbind, waittimes)
+  # results[,3] contains "waittimes"
+  wait <- do.call(rbind, results[, 3])
   
-  #summary of all runs
+  # Create dataframe for summary information
+  summary <- create_summary_df(nruns)
+  
+  # Summary of all runs
+  # CHANGE: Moved out of loop as didn't need to be in it as same each time
+  summary$LOS <- 1 / visit_param_dist[[z]]
+  summary$ISR <- ISR[z]
+  summary$nruns <- nruns
+  summary$sim_length <- sim_length
+  summary$warm_up <- warmup
+  summary$capacity <- n_slots[z]
+    
   for (k in 1:nruns) {
-    r.out <- which(out[, 1] == k)
-    k.wait <- which(wait[, 1] == k)
-    summary[k, ] <- c(
-      LOS = 1 / visit_param_dist[[z]],
-      ISR = ISR[z],
-      nruns = nruns,
-      sim_length = sim_length,
-      warm_up = warmup,
-      capacity = n_slots[z],
-      mean_wait = round(mean(wait$waittime[k.wait]), 2),
-      q_length = round(mean(out$q_length[r.out]), 2),
-      res_used = round(mean(out$res_used[r.out]), 2),
-      res_idle = round(mean(out$res_idle[r.out]), 2),
-      in_sys = round(mean(out$in_sys[r.out]), 2)
-    )
-    
-    #niq and occ by day (plus other measures if needed)
-    ts_output <- out %>% group_by(day, node) %>%
-      summarise(
-        niq = mean(q_length),
-        in_sys = mean(in_sys),
-        n_slots_used = mean(n_slots_used),
-        occ = mean(patients_in_service),
-        mean_res_idle = mean(res_idle),
-        mean_res_used = mean(res_used)
-      ) %>%
-      ungroup()
-    
-    #create cost columns
-    loc = sapply(ts_output$node, function(x)
-      paste(strsplit(x, "_")[[1]][1:2], collapse = '_'))
-    ts_output$node <- loc
-    ts_output <- left_join(ts_output, costs_visit, by = "node")
-    ts_output <-
-      ts_output %>% mutate(cost = (niq * acute_dtoc) + (n_slots_used * community_cost))
-    ts_output <- cbind(ts_output)
-    
-    #waits by day
-    ts_waits <- wait %>% group_by(day_, scen_) %>%
-      summarise(wait = mean(waittime)) %>%
-      ungroup()
-    
-    #for each scenario:
-    ts_output <- cbind(ts_output, ts_waits)
+    # Extract results for that run
+    r.out <- which(out[, "RUNX"] == k)
+    k.wait <- which(wait[, "RUNX"] == k)
+    # Add results for that run
+    # AMY: repetitive round(mean())
+    summary[k, "mean_wait"] <- round(mean(wait$waittime[k.wait]), 2)
+    summary[k, "q_length"] <- round(mean(out$q_length[r.out]), 2)
+    summary[k, "res_used"] <- round(mean(out$res_used[r.out]), 2)
+    summary[k, "res_idle"] <- round(mean(out$res_idle[r.out]), 2)
+    summary[k, "in_sys"] <- round(mean(out$in_sys[r.out]), 2)
   }
-  #rowbind each scenario
-  visits_based_output <- rbind(visits_based_output, ts_output)
   
+  # CHANGE: Moved out of loop as didn't need to be in it as same each time
+  # Groups by day (e.g. day 1) and node (e.g. P1_B_BCap_Blos_Barr)
+  # Finds average results for each day
+  ts_output <- out %>%
+    group_by(day, node) %>%
+    summarise(
+      niq = mean(q_length),
+      in_sys = mean(in_sys),
+      n_slots_used = mean(n_slots_used),
+      occ = mean(patients_in_service),
+      mean_res_idle = mean(res_idle),
+      mean_res_used = mean(res_used)
+    ) %>%
+    ungroup()
+  
+  # Create cost columns
+  # CHANGE: Use unlist() as clearer than [[1]]
+  # Extract first two parts of the scenario (e.g. "P1_LocB"
+  # dropping "BCap_Bloc_BArr")
+  loc <- sapply(ts_output$node, function(x)
+    paste(unlist(str_split(x, "_"))[1:2], collapse="_"))
+  
+  # AMY:is there a simpler way of changing that scenario column
+  # AMY: is cbind() to convert from tibble to dataframe? what is purpose?
+  ts_output$node <- loc
+  ts_output <- left_join(ts_output, costs_visit, by = "node") %>%
+    mutate(cost = (niq * acute_dtoc) + (n_slots_used * community_cost))
+  ts_output <- cbind(ts_output)
+  
+  #waits by day
+  ts_waits <- wait %>%
+    group_by(day_, scen_) %>%
+    summarise(wait = mean(waittime)) %>%
+    ungroup()
+  
+  # For each scenario:
+  ts_output <- cbind(ts_output, ts_waits)
+  
+  # Rowbind each scenario
+  visits_based_output <- rbind(visits_based_output, ts_output)
 }
 
-ptvisits_niq <-
-  visits_based_output[, c(1, 13, 3)] %>% pivot_wider(names_from = scen_, values_from =
-                                                       niq)
-ptvisits_niq <- subset(ptvisits_niq, select = -c(day))
-ptvisits_occ <-
-  visits_based_output[, c(1, 13, 6)] %>% pivot_wider(names_from = scen_, values_from =
-                                                       occ)
-ptvisits_occ <- subset(ptvisits_occ, select = -c(day))
-ptvisits_wait <-
-  visits_based_output[, c(1, 13, 14)] %>% pivot_wider(names_from = scen_, values_from =
-                                                        wait)
-ptvisits_wait <- subset(ptvisits_wait, select = -c(day))
-ptvisits_costs <-
-  visits_based_output[, c(1, 13, 11)] %>% pivot_wider(names_from = scen_, values_from =
-                                                        cost)
-ptvisits_costs <- subset(ptvisits_costs, select = -c(day))
+# Extract and pivot results for NIQ, OCC, wait and costs
+ptvisits_niq <- visits_based_output %>%
+  select(day, scen_, niq) %>%
+  pivot_wider(names_from = scen_, values_from = niq) %>%
+  select(-day)
+ptvisits_occ <- visits_based_output %>%
+  select(day, scen_, occ) %>%
+  pivot_wider(names_from = scen_, values_from = occ) %>%
+  select(-day)
+ptvisits_wait <- visits_based_output %>%
+  select(day, scen_, wait) %>%
+  pivot_wider(names_from = scen_, values_from = wait) %>%
+  select(-day)
+ptvisits_costs <- visits_based_output %>%
+  select(day, scen_, cost) %>%
+  pivot_wider(names_from = scen_, values_from = cost) %>%
+  select(-day)
 
-colnames_v <-
-  cbind(c('date', (paste0(
-    visit_pathway_vector, "__niq"
-  )),
-  (paste0(
-    visit_pathway_vector, "__occ"
-  )),
-  (paste0(
-    visit_pathway_vector, "__wait"
-  )),
-  (paste0(
-    visit_pathway_vector, "__cost"
-  ))))
-MeansOutput_v <-
-  cbind(
-    data.frame(arr_rates_visit_p1$date[1:length(arr_rates_visit_p1$date)]),
-    data.frame(data.frame(ptvisits_niq)),
-    data.frame(data.frame(ptvisits_occ)),
-    data.frame(data.frame(ptvisits_wait)),
-    data.frame(data.frame(ptvisits_costs))
-  )
+# Combine those dataframes, along with the dates
+MeansOutput_v <- cbind(
+  data.frame(arr_rates_visit_p1$date),
+  data.frame(data.frame(ptvisits_niq)),
+  data.frame(data.frame(ptvisits_occ)),
+  data.frame(data.frame(ptvisits_wait)),
+  data.frame(data.frame(ptvisits_costs))
+)
+
+# Set column names
+colnames_v <- cbind(c("date",
+                      paste0(visit_pathway_vector,"__niq"), 
+                      paste0(visit_pathway_vector,"__occ"),
+                      paste0(visit_pathway_vector, "__wait"),
+                      paste0(visit_pathway_vector, "__cost")))
 colnames(MeansOutput_v) <- colnames_v
 
-# CHANGE: Save to csv, with filename based on the input file used rather than today's date
-write.csv(MeansOutput_v,
-          paste0(
-            "outputs/visit_output_using_",
-            gsub(".xlsx", "", input_filename),
-            ".csv"
-          ),
-          row.names = FALSE)
+# CHANGE: Save to csv, with filename based on the input file used rather
+# than today's date
+output_filename <- paste0("outputs/visit_output_using_",
+                          gsub(".xlsx", "", input_filename),
+                          ".csv")
+write.csv(MeansOutput_v, output_filename, row.names = FALSE)
