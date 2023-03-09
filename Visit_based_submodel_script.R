@@ -73,19 +73,11 @@ endSR <- as.integer(visit_scenarios$FVR)
 sd_ISR <- as.double(rep(sd_ISR, nrow(visit_scenarios)))
 sd_ESR <- as.double(rep(sd_ESR, nrow(visit_scenarios)))
 
-# CHANGE: Removed n_patients (just made visit_cap as.integer() when created),
-# and replaced n_patients with visit_cap below
 
 # Create n_slots, the number of visit slots available per day
 # Based on an average visit rate (as from mean of ISR and endSR)
 # multiplied by the capacity for P1 (visit_cap)
 n_slots  <- visit_cap * mean(c(ISR, endSR))
-
-# CHANGE: create sim_length in model_script by setting to as.integer() there,
-# removing need for run_time object
-
-# CHANGE: create nruns as integer to begin with, and use here (instead of
-# nruns_all and setting as integer for each model with different object names)
 
 visits_based_output <- NULL
 
@@ -108,15 +100,15 @@ for (z in 1:length(visit_pathway_vector)) {
     
     # Create necessary data structures
     # Captures output after warmup
-    # CHANGE: Removed patients_initial and patients_inqueue, as they are
-    # redundant as you add rows with npat which increments, and as you
-    # ultimately just bind them with patients anyway
     output <- create_output_df(nrow = sim_length)
     patients <- create_patient_df(nrow = (sim_length + warmup) * 10)
+    
     # Stores wait times for patients who leave system
     waittime_vec <- create_wait_df()
+    
     # List with required visit vectors for each patient
     req_visits <- list()
+    
     # Create resources, *10 to make it sufficiently large
     resources <- matrix(data = n_slots[z], nrow = (sim_length+warmup)*10)
     
@@ -152,8 +144,6 @@ for (z in 1:length(visit_pathway_vector)) {
       resources <- add_patient_output[[5]]
     }
     
-    # CHANGE: ent_sys + npat makes ent_sys too large, as npat is not
-    # resetting each time
     ent_sys <- npat
     
     # Simulation
@@ -187,7 +177,6 @@ for (z in 1:length(visit_pathway_vector)) {
       
       # Recording output from the day warm up period has finished
       if (t > warmup) {
-        # CHANGE: Removed three if else() as they all had the same action
         output[t - warmup,] <- c(
           RUNX = run,
           node = visit_pathway_vector[z],
@@ -224,8 +213,8 @@ for (z in 1:length(visit_pathway_vector)) {
   }
   stopCluster(cl)
   
-  # Extract results from above (contains results from each run)
-  # CHANGE: Simplified, removed some hard coding
+  # Extract results from above (contains results from each run)...
+  
   # results[,1] contains "output"
   out <- do.call(rbind, results[, 1]) %>%
     mutate_at(c("n_slots_used", "patients_in_service", "res_used",
@@ -239,11 +228,8 @@ for (z in 1:length(visit_pathway_vector)) {
   # results[,3] contains "waittimes"
   wait <- do.call(rbind, results[, 3])
   
-  # Create dataframe for summary information
+  # Create dataframe for summary information from each run
   summary <- create_summary_df(nruns)
-  
-  # Summary of all runs
-  # CHANGE: Moved out of loop as didn't need to be in it as same each time
   summary$LOS <- 1 / visit_param_dist[[z]]
   summary$ISR <- ISR[z]
   summary$nruns <- nruns
@@ -264,7 +250,6 @@ for (z in 1:length(visit_pathway_vector)) {
     summary[k, "in_sys"] <- round(mean(out$in_sys[r.out]), 2)
   }
   
-  # CHANGE: Moved out of loop as didn't need to be in it as same each time
   # Groups by day (e.g. day 1) and node (e.g. P1_B_BCap_Blos_Barr)
   # Finds average results for each day
   ts_output <- out %>%
@@ -280,7 +265,6 @@ for (z in 1:length(visit_pathway_vector)) {
     ungroup()
   
   # Create cost columns
-  # CHANGE: Use unlist() as clearer than [[1]]
   # Extract first two parts of the scenario (e.g. "P1_LocB"
   # dropping "BCap_Bloc_BArr")
   loc <- sapply(ts_output$node, function(x)
@@ -341,8 +325,7 @@ colnames_v <- cbind(c("date",
                       paste0(visit_pathway_vector, "__cost")))
 colnames(MeansOutput_v) <- colnames_v
 
-# CHANGE: Save to csv, with filename based on the input file used rather
-# than today's date
+# Save output to csv with output filename based on input filename
 output_filename <- paste0("outputs/visit_output_using_",
                           gsub(".xlsx", "", input_filename),
                           ".csv")
