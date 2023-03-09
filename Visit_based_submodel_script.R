@@ -116,7 +116,7 @@ for (z in 1:length(visit_pathway_vector)) {
     # redundant as you add rows with npat which increments, and as you
     # ultimately just bind them with patients anyway
     output <- create_output_df(nrow = sim_length)
-    patients <- create_patient_df(nrow = (sim_length + warmup) * 2)
+    patients <- create_patient_df(nrow = (sim_length + warmup) * 10)
     # Stores wait times for patients who leave system
     waittime_vec <- create_wait_df()
     # List with required visit vectors for each patient
@@ -193,8 +193,13 @@ for (z in 1:length(visit_pathway_vector)) {
       req_visits[[id]] <- visit_vector
       
       # Save to patients_inqueue dataframe
-      # AMY: Need to make clearer
-      patients[npat,] <- c(id, los, t, NA, NA, 0, FALSE)
+      patients$id[npat] <- id
+      patients$los[npat] <- los
+      patients$arrival_time[npat] <- t
+      patients$start_service[npat] <- NA
+      patients$end_service[npat] <- NA
+      patients$wait_time[npat] <- 0
+      patients$exit[npat] <- FALSE
       
       # Run function, and replace patients df and resources with objects
       # from the function (as function couldn't output individual objects)
@@ -203,7 +208,9 @@ for (z in 1:length(visit_pathway_vector)) {
       resources <- resources_list[[2]]
     }
     
-    ent_sys <- ent_sys + npat
+    # CHANGE: ent_sys + npat makes ent_sys too large, as npat is not
+    # resetting each time
+    ent_sys <- npat
     
     # Simulation
     for (t in 1:(sim_length + warmup)) {
@@ -233,7 +240,13 @@ for (z in 1:length(visit_pathway_vector)) {
           
           # Save information to patients dataframe
           # AMY: Need to make clearer
-          patients[npat,] <- c(id, los, t, NA, NA, 0, FALSE)
+          patients$id[npat] <- id
+          patients$los[npat] <- los
+          patients$arrival_time[npat] <- t
+          patients$start_service[npat] <- NA
+          patients$end_service[npat] <- NA
+          patients$wait_time[npat] <- 0
+          patients$exit[npat] <- FALSE
           
           # Run function, and replace patients df and resources with objects
           # from the function (as function couldn't output individual objects)
