@@ -178,34 +178,13 @@ for (z in 1:length(visit_pathway_vector)) {
     # Create set of initial conditions for patients already waiting to go
     # into P1
     for (j in 1:visit_init_q[[z]]) {
-      # Increment ID and npat
-      id <- id + 1
-      npat <- npat + 1
-      
-      # Find LOS and required visits
-      los <- dis_los()
-      init_slots <- dis_init_slots()
-      end_slots <- dis_end_slots()
-      visit_vector <-
-        round(seq(from = init_slots,
-                  to = end_slots,
-                  length.out = los)) #full visit seq
-      req_visits[[id]] <- visit_vector
-      
-      # Save to patients_inqueue dataframe
-      patients$id[npat] <- id
-      patients$los[npat] <- los
-      patients$arrival_time[npat] <- t
-      patients$start_service[npat] <- NA
-      patients$end_service[npat] <- NA
-      patients$wait_time[npat] <- 0
-      patients$exit[npat] <- FALSE
-      
-      # Run function, and replace patients df and resources with objects
-      # from the function (as function couldn't output individual objects)
-      resources_list <- check_resources(df = patients)
-      patients <- resources_list[[1]]
-      resources <- resources_list[[2]]
+      # Run add_patient, then save to objects from that output list
+      add_patient_output <- add_patient()
+      id <- add_patient_output[[1]]
+      npat <- add_patient_output[[2]]
+      req_visits <- add_patient_output[[3]]
+      patients <- add_patient_output[[4]]
+      resources <- add_patient_output[[5]]
     }
     
     # CHANGE: ent_sys + npat makes ent_sys too large, as npat is not
@@ -239,7 +218,6 @@ for (z in 1:length(visit_pathway_vector)) {
           req_visits[[id]] <- visit_vector
           
           # Save information to patients dataframe
-          # AMY: Need to make clearer
           patients$id[npat] <- id
           patients$los[npat] <- los
           patients$arrival_time[npat] <- t
@@ -255,11 +233,6 @@ for (z in 1:length(visit_pathway_vector)) {
           resources <- resources_list[[2]]
         }
       }
-      
-      # BIG ISSUE!
-      # AMY: I think we could be overwriting patients, as when rbind above,
-      # first 93 rows of patients_in_queue is NA, and so when then add patients
-      # at npat, it creates an issue, so ID 93 to 131 get lost
       
       # Find patients in queue, increment wait time column by one day
       in_q <- which((patients$start_service > t) & (patients$id > 0))

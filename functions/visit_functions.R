@@ -167,6 +167,54 @@ check_resources <- function(df){
 }
 
 
+add_patient <- function(){
+  # Increment ID and npat
+  id <- id + 1
+  npat <- npat + 1
+  
+  # Find LOS and required visits
+  los <- dis_los()
+  init_slots <- dis_init_slots()
+  end_slots <- dis_end_slots()
+  visit_vector <-
+    round(seq(from = init_slots,
+              to = end_slots,
+              length.out = los)) #full visit seq
+  req_visits[[id]] <- visit_vector
+  
+  # Save to patients_inqueue dataframe
+  patients$id[npat] <- id
+  patients$los[npat] <- los
+  patients$arrival_time[npat] <- t
+  patients$start_service[npat] <- NA
+  patients$end_service[npat] <- NA
+  patients$wait_time[npat] <- 0
+  patients$exit[npat] <- FALSE
+  
+  # Planning service, check resources
+  # Create temporary t for incrementing when no resources available
+  tt <- t
+  # Create adjusted LOS
+  los_adj <- patients$los[npat] - 1
+  # While start_service = NA
+  while (is.na(patients$start_service[npat]) == TRUE) {
+    # If resources columns (from tt to LOS-1) are >= req_visits
+    if (all(resources[tt:(tt + los_adj), ] >= req_visits[[id]]) == TRUE) {
+      patients$start_service[npat] <- tt
+      patients$end_service[npat] <- tt + los_adj
+      # Decrease capacity
+      resources[tt:(tt + los_adj), ] <- resources[tt:(tt + los_adj), ] - req_visits[[id]]
+    } else {
+      # If no sufficient resources, check for starting on the next day
+      tt <- tt + 1
+    }
+  }
+  
+  # Return changed objects that are needed (e.g. things we increment on
+  # or dataframes we use elsewhere)
+  return(list(id, npat, req_visits, patients, resources))
+}
+
 # # Save information to patients dataframe
 # save_patient_info <- function(df, npat, id, los, arrival_time,
 #                               start_service, end_service, wait_time,
