@@ -56,10 +56,10 @@ dis_init_slots <- function() {
   # ISR is normal distribution with mean and SD specified
   # Sample from normal distribution using those values
   # Cannot be (a) less than 0, (b) more than mean+SD*3, or (c) more than n_slots
-  x <- round(rnorm(n = 1, mean = ISR[z], sd = sd_isr[z]))
-  max_v <- ISR[z] + (sd_isr[z] * 3)
+  x <- round(rnorm(n = 1, mean = isr[z], sd = sd_isr[z]))
+  max_v <- isr[z] + (sd_isr[z] * 3)
   while (x <= 0 | x > max_v | x > n_slots[z]) {
-    x <- round(rnorm(n = 1, mean = ISR[z], sd = sd_isr[z]))
+    x <- round(rnorm(n = 1, mean = isr[z], sd = sd_isr[z]))
   }
   return(x)
 }
@@ -69,10 +69,10 @@ dis_end_slots <- function() {
   # Sample from normal distribution for end visit rate
   # Using the appropriate mean and sd
   # Can't be less than 0 or max than mean+SD*3
-  x <- round(rnorm(1, mean = endSR[z], sd = sd_esr[z]))
-  max_v <- endSR[z] + (sd_esr[z] * 3)
+  x <- round(rnorm(1, mean = end_sr[z], sd = sd_esr[z]))
+  max_v <- end_sr[z] + (sd_esr[z] * 3)
   while (x <= 0 | x > max_v) {
-    x <- round(rnorm(1, mean = endSR[z], sd = sd_esr[z]))
+    x <- round(rnorm(1, mean = end_sr[z], sd = sd_esr[z]))
   }
   return(x)
 }
