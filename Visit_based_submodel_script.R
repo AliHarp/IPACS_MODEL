@@ -1,11 +1,12 @@
-# Visit-based model (for P1 pathways)
+# Visit-based model (for P1 pathways) -----------------------------------------
+
+# Set up ----------------------------------------------------------------------
 
 source(here("functions", "visit_functions.R"))
 
 # Manual parameters
 # ISR/IVR = initial service/visit rate
 # ESR/FVR = end service rate/final visit rate
-# AMY: Need to standardise names (ISR/IVR) (ESR/FVR/endSR)
 sd_isr <- 0.5
 sd_esr <- 0.5
 temp_seed <- 1
@@ -60,35 +61,35 @@ arr_rates_visit_p1 <- arr_scenarios_v %>%
 visit_pathway_vector <- dput(colnames(arr_rates_visit_p1 %>% select(-date)))
 
 # Set the minimum and maximum length of stay (LOS) and initial service rate
-# (ISR)
+# (isr)
 # AMY: concerned that it is replacing value of objects rather than making new
-# AMY: need to understand why these are min and max LOS and ISR (as title was
+# AMY: need to understand why these are min and max LOS and isr (as title was
 # from existing script)
 # AMY: change to snake_case
-ISR <- as.integer(visit_scenarios$IVR)
-endSR <- as.integer(visit_scenarios$FVR)
+isr <- as.integer(visit_scenarios$IVR)
+end_sr <- as.integer(visit_scenarios$FVR)
 
 # Create lists with sd_isr or sd_esr repeated for number of visit scenarios
-# AMY: change to snake_case
 sd_isr <- as.double(rep(sd_isr, nrow(visit_scenarios)))
 sd_esr <- as.double(rep(sd_esr, nrow(visit_scenarios)))
 
 
 # Create n_slots, the number of visit slots available per day
-# Based on an average visit rate (as from mean of ISR and endSR)
+# Based on an average visit rate (as from mean of isr and end_sr)
 # multiplied by the capacity for P1 (visit_cap)
-n_slots  <- visit_cap * mean(c(ISR, endSR))
+n_slots  <- visit_cap * mean(c(isr, end_sr))
 
 visits_based_output <- NULL
 
-####runs##################################
-#z represents the index for all scenarios through all visit-based pathways
 
-for (z in 1:length(visit_pathway_vector)) {
+# Model -----------------------------------------------------------------------
+
+# Repeat for each scenario in visit-based pathways
+for (z in seq_along(visit_pathway_vector)) {
   # detectCores() but -1 as want to make you you have one left to do other
   # stuff on. Cores are processors that can work on tasks. Then makecluster()
   # to set the amount of clusters you want your code to run on
-  cl <- parallel::makeCluster(detectCores()-1)
+  cl <- parallel::makeCluster(detectCores() - 1)
   registerDoSNOW(cl)
   run <- 1
 
@@ -119,10 +120,9 @@ for (z in 1:length(visit_pathway_vector)) {
     id <- 0
     t <- 1
 
-    # Creating set of initial condition patients that are already in the
-    # system at day 1 (i.e. patients already in P1)
+    ### Initial conditions (already in P1) ------------------------------------
+    # For each patient...
     for (j in 1:visit_init_occ[[z]]) {
-      # Run add_patient, then save to objects from that output list
       add_patient_output <- add_patient(in_system = TRUE)
       id <- add_patient_output[[1]]
       npat <- add_patient_output[[2]]
@@ -131,13 +131,9 @@ for (z in 1:length(visit_pathway_vector)) {
       resources <- add_patient_output[[5]]
     }
 
-    # Increment ent_sys
-    ent_sys <- ent_sys + npat
-
-    # Create set of initial conditions for patients already waiting to go
-    # into P1
+    ### Initial conditions (waiting to go to P1) ------------------------------
+    # For each patient...
     for (j in 1:visit_init_q[[z]]) {
-      # Run add_patient, then save to objects from that output list
       add_patient_output <- add_patient(in_system = FALSE)
       id <- add_patient_output[[1]]
       npat <- add_patient_output[[2]]
@@ -146,9 +142,10 @@ for (z in 1:length(visit_pathway_vector)) {
       resources <- add_patient_output[[5]]
     }
 
+    # Set ent_sys as npat
     ent_sys <- npat
 
-    # Simulation
+    ### Simulation ------------------------------------------------------------
     for (t in 1:(sim_length + warmup)) {
       # Sample from poisson distribution to get number of arrivals
       # t is the day, and z+1 is the appropriate pathway/location/scenario
@@ -159,9 +156,8 @@ for (z in 1:length(visit_pathway_vector)) {
       if (narr > 0) {
         ent_sys <- ent_sys + narr
 
-        # For each arrived patient
+        # For each arrived patient...
         for (j in 1:narr) {
-          # Run add_patient, then save to objects from that output list
           add_patient_output <- add_patient(in_system = FALSE)
           id <- add_patient_output[[1]]
           npat <- add_patient_output[[2]]
@@ -186,7 +182,7 @@ for (z in 1:length(visit_pathway_vector)) {
           q_length = length(in_q),
           n_slots_used = n_slots[z] - (resources[t, ]),
           patients_in_service = (n_slots[z] - (resources[t, ])) /
-            (mean(c(ISR[z], endSR[z]))),
+            (mean(c(isr[z], end_sr[z]))),
           res_used = 1 - (resources[t, ] / n_slots[z]),
           res_idle = resources[t, ] / n_slots[z],
           in_sys = (ent_sys - left_sys))
@@ -233,7 +229,7 @@ for (z in 1:length(visit_pathway_vector)) {
   # Create dataframe for summary information from each run
   summary <- create_summary_df(nruns)
   summary$LOS <- 1 / visit_param_dist[[z]]
-  summary$ISR <- ISR[z]
+  summary$ISR <- isr[z]
   summary$nruns <- nruns
   summary$sim_length <- sim_length
   summary$warm_up <- warmup
@@ -270,8 +266,7 @@ for (z in 1:length(visit_pathway_vector)) {
   # Extract first two parts of the scenario (e.g. "P1_LocB"
   # dropping "BCap_Bloc_BArr")
   loc <- sapply(ts_output$node, function(x) {
-    paste(unlist(str_split(x, "_"))[1:2], collapse = "_")}
-    )
+    paste(unlist(str_split(x, "_"))[1:2], collapse = "_")})
 
   # AMY:is there a simpler way of changing that scenario column
   # AMY: is cbind() to convert from tibble to dataframe? what is purpose?
@@ -293,43 +288,24 @@ for (z in 1:length(visit_pathway_vector)) {
   visits_based_output <- rbind(visits_based_output, ts_output)
 }
 
-# Extract and pivot results for NIQ, OCC, wait and costs
-ptvisits_niq <- visits_based_output %>%
-  select(day, scen_, niq) %>%
-  pivot_wider(names_from = scen_, values_from = niq) %>%
-  select(-day)
-ptvisits_occ <- visits_based_output %>%
-  select(day, scen_, occ) %>%
-  pivot_wider(names_from = scen_, values_from = occ) %>%
-  select(-day)
-ptvisits_wait <- visits_based_output %>%
-  select(day, scen_, wait) %>%
-  pivot_wider(names_from = scen_, values_from = wait) %>%
-  select(-day)
-ptvisits_costs <- visits_based_output %>%
-  select(day, scen_, cost) %>%
-  pivot_wider(names_from = scen_, values_from = cost) %>%
-  select(-day)
 
-# Combine those dataframes, along with the dates
-MeansOutput_v <- cbind(
-  data.frame(arr_rates_visit_p1$date),
-  data.frame(data.frame(ptvisits_niq)),
-  data.frame(data.frame(ptvisits_occ)),
-  data.frame(data.frame(ptvisits_wait)),
-  data.frame(data.frame(ptvisits_costs))
-)
+# Save model results ----------------------------------------------------------
 
-# Set column names
-colnames_v <- cbind(c("date",
-                      paste0(visit_pathway_vector, "__niq"),
-                      paste0(visit_pathway_vector, "__occ"),
-                      paste0(visit_pathway_vector, "__wait"),
-                      paste0(visit_pathway_vector, "__cost")))
-colnames(MeansOutput_v) <- colnames_v
+# Extract and pivot results for NIQ, OCC, wait and costs, then append together,
+# along with the dates
+outcomes <- c("niq", "occ", "wait", "cost")
+ptvisits_list <- list(arr_rates_visit_p1["date"])
+for (i in seq_along(outcomes)){
+  ptvisits_list[[i + 1]] <- visits_based_output[c("day", "scen_",
+                                                  outcomes[i])] %>%
+    pivot_wider(names_from = "scen_", values_from = as.name(outcomes[i])) %>%
+    select(-day) %>%
+    setNames(paste0(names(.), "__", outcomes[i]))
+}
+means_output_v <- do.call("cbind", ptvisits_list)
 
 # Save output to csv with output filename based on input filename
 output_filename <- paste0("outputs/visit_output_using_",
                           gsub(".xlsx", "", input_filename),
                           ".csv")
-write.csv(MeansOutput_v, output_filename, row.names = FALSE)
+write.csv(means_output_v, output_filename, row.names = FALSE)
