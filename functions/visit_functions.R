@@ -8,12 +8,10 @@ dis_los <- function() {
   # that is >=0 and <= the max LOS. Uses do.call() as we need to input
   # mean and SD for rlnorm() from a list
   #
-  # AMY: These were default inputs but it was causing problems
   # los_dist - The distribution type (e.g. lnorm)
   # los_lnorm_mean_sd - The mean and SD for the lnorm distribution
   # los_norm_mean - The mean for the other distribution type
   # los_norm_sd - The SD for the other distribution type
-  # AMY: Was that always norm?
 
   los_dist <- visit_srv_dist[[z]]
   los_lnorm_mean_sd <- visit_srv_params[[z]]
