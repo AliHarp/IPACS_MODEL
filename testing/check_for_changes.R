@@ -12,8 +12,9 @@ diffdf::diffdf(visit_new, visit_test)
 # Hence renamed visit_testing_prior_to_bug_fix_for_IPACS_20230214_fix.csv
 
 # Linting
-lint("IPACS_model_script.R")
-lint("Visit_based_submodel_script.R")
-lint("functions/visit_functions.R")
-lint("Bed_based_submodel_script.R")
-lint("rmdscript_ipacs_V3.Rmd")
+lint("ipacs_main_script.R")
+lint(here("functions", "set_up.R"))
+lint(here("functions", "visit_functions.R"))
+lint(here("functions", "visit_model.R"))
+lint(here("functions", "bed_model.R"))
+lint("ipacs_produce_report.Rmd")
