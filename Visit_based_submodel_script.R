@@ -4,14 +4,6 @@
 
 source(here("functions", "visit_functions.R"))
 
-# Manual parameters
-# ISR/IVR = initial service/visit rate
-# ESR/FVR = end service rate/final visit rate
-sd_isr <- 0.5
-sd_esr <- 0.5
-temp_seed <- 1
-warmup <- 0
-
 # Extract visit-based scenarios (P1) from imported dataframes
 df_list <- list(list("visit_scenarios", scenarios),
                 list("arr_scenarios_v", arr_scenarios),
@@ -21,16 +13,13 @@ for (x in df_list){
 }
 
 # Create lists containing parameters from dataframes
-# AMY: requires more comments
 visit_init_occ <- as.list(visit_scenarios$occ)
 visit_init_q <- as.list(visit_scenarios$dtoc)
 visit_srv_dist <- as.list(visit_scenarios$los_dist)
 visit_cap <- as.integer(as.list(visit_scenarios$capacity))
 visit_loss <- as.list(rep(0, nrow(visit_scenarios)))
 
-# If you have a log-normal distribution for length of stay
-# AMY: could change mu and sigma to mean and SD to be consistent with language
-# AMY: could provide better column labels
+# Parameters for sampling length of stay when have a log-normal distribution
 visit_srv_params <- visit_scenarios %>%
   separate(los_params, into = c("mu", "sigma"), sep = ",", convert = TRUE) %>%
   select(mu, sigma) %>%
@@ -39,13 +28,10 @@ visit_srv_params <- visit_scenarios %>%
   data.frame() %>%
   as.list()
 
-# if norm
-# AMY: Provide more descriptive comment (once certain on what this
-# means)
+# Parameters for sampling length of stay when have a normal distribution
 # AMY: Not sure why round down the mean length of stay to an integer
 # (e.g. mean_los[85] 18.7 goes to 18)
 visit_param_dist <- as.list(as.integer(visit_scenarios$mean_los))
-# Repeat "sd_los" for the number of rows in "visit_scenarios"
 visit_param_sd <- as.list(rep(sd_los, nrow(visit_scenarios)))
 
 # Select arrivals, date and scenario, then pivot so each row is a date
@@ -55,30 +41,22 @@ arr_rates_visit_p1 <- arr_scenarios_v %>%
   pivot_wider(names_from = S, values_from = arrivals) %>%
   arrange(date)
 
-# Create vector with each scenario name
-# AMY: dput prints to screen, without it is same object, presume that print is
-# needed
+# Create vector with each scenario name (dput is just to print to screen)
 visit_pathway_vector <- dput(colnames(arr_rates_visit_p1 %>% select(-date)))
 
-# Set the minimum and maximum length of stay (LOS) and initial service rate
-# (isr)
-# AMY: concerned that it is replacing value of objects rather than making new
-# AMY: need to understand why these are min and max LOS and isr (as title was
-# from existing script)
-# AMY: change to snake_case
+# Initial service rate and end service rate, and their standard deviation
+# Create lists with sd_isr or sd_esr repeated for number of visit scenarios
 isr <- as.integer(visit_scenarios$IVR)
 end_sr <- as.integer(visit_scenarios$FVR)
-
-# Create lists with sd_isr or sd_esr repeated for number of visit scenarios
 sd_isr <- as.double(rep(sd_isr, nrow(visit_scenarios)))
 sd_esr <- as.double(rep(sd_esr, nrow(visit_scenarios)))
 
-
-# Create n_slots, the number of visit slots available per day
-# Based on an average visit rate (as from mean of isr and end_sr)
-# multiplied by the capacity for P1 (visit_cap)
+# Create n_slots, the number of visit slots available per day. This is based
+# on an average visit rate (as from mean of isr and end_sr) multiplied by the
+# capacity for P1 (visit_cap)
 n_slots  <- visit_cap * mean(c(isr, end_sr))
 
+# Create object to store outputs from each scenario
 visits_based_output <- NULL
 
 
@@ -262,29 +240,23 @@ for (z in seq_along(visit_pathway_vector)) {
     ) %>%
     ungroup()
 
-  # Create cost columns
-  # Extract first two parts of the scenario (e.g. "P1_LocB"
-  # dropping "BCap_Bloc_BArr")
-  loc <- sapply(ts_output$node, function(x) {
+  # Create node column by extractinh first two parts of the scenario
+  # (e.g. "P1_LocB", dropping "BCap_Bloc_BArr")
+  ts_output$node <- sapply(ts_output$node, function(x) {
     paste(unlist(str_split(x, "_"))[1:2], collapse = "_")})
-
-  # AMY:is there a simpler way of changing that scenario column
-  # AMY: is cbind() to convert from tibble to dataframe? what is purpose?
-  ts_output$node <- loc
+  
+  # Create costs column
   ts_output <- left_join(ts_output, costs_visit, by = "node") %>%
     mutate(cost = (niq * acute_dtoc) + (n_slots_used * community_cost))
-  ts_output <- cbind(ts_output)
 
-  #waits by day
+  # Waits by day
   ts_waits <- wait %>%
     group_by(day_, scen_) %>%
     summarise(wait = mean(waittime)) %>%
     ungroup()
 
-  # For each scenario:
+  # Combine ts_output and ts_waits, and then save the scenario results
   ts_output <- cbind(ts_output, ts_waits)
-
-  # Rowbind each scenario
   visits_based_output <- rbind(visits_based_output, ts_output)
 }
 
