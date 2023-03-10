@@ -14,14 +14,14 @@ dis_los <- function() {
   # los_norm_mean - The mean for the other distribution type
   # los_norm_sd - The SD for the other distribution type
   # AMY: Was that always norm?
-  
+
   los_dist <- visit_srv_dist[[z]]
   los_lnorm_mean_sd <- visit_srv_params[[z]]
   los_norm_mean <- visit_param_dist[[z]]
   los_norm_sd <- visit_param_sd[[z]]
-  
+
   max_los <- los_norm_mean + los_norm_sd * 3
-  
+
   if (los_dist == "lnorm") {
     x <- round(do.call(rlnorm, c(list(1, los_lnorm_mean_sd))))
     while (x <= 0 | x >= max_los) {
@@ -56,10 +56,10 @@ dis_init_slots <- function() {
   # ISR is normal distribution with mean and SD specified
   # Sample from normal distribution using those values
   # Cannot be (a) less than 0, (b) more than mean+SD*3, or (c) more than n_slots
-  x <- round(rnorm(n = 1, mean = ISR[z], sd = sd_ISR[z]))
-  max_v <- ISR[z] + (sd_ISR[z] * 3)
+  x <- round(rnorm(n = 1, mean = ISR[z], sd = sd_isr[z]))
+  max_v <- ISR[z] + (sd_isr[z] * 3)
   while (x <= 0 | x > max_v | x > n_slots[z]) {
-    x <- round(rnorm(n = 1, mean = ISR[z], sd = sd_ISR[z]))
+    x <- round(rnorm(n = 1, mean = ISR[z], sd = sd_isr[z]))
   }
   return(x)
 }
@@ -69,16 +69,16 @@ dis_end_slots <- function() {
   # Sample from normal distribution for end visit rate
   # Using the appropriate mean and sd
   # Can't be less than 0 or max than mean+SD*3
-  x <- round(rnorm(1, mean = endSR[z], sd = sd_ESR[z]))
-  max_v <- endSR[z] + (sd_ESR[z] * 3)
+  x <- round(rnorm(1, mean = endSR[z], sd = sd_esr[z]))
+  max_v <- endSR[z] + (sd_esr[z] * 3)
   while (x <= 0 | x > max_v) {
-    x <- round(rnorm(1, mean = endSR[z], sd = sd_ESR[z]))
+    x <- round(rnorm(1, mean = endSR[z], sd = sd_esr[z]))
   }
   return(x)
 }
 
 
-create_patient_df <- function(nrow){
+create_patient_df <- function(nrow) {
   # Create blank dataframe for patients in visit simulation
   # Input: nrow
   df <- data.frame(
