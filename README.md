@@ -7,7 +7,8 @@ If on linux, may get error when installing flextable, as require the following l
 * textshaping - libfribidi-dev libharfbuzz-dev  
 * ragg - libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev  
 * gdtools - libcairo2-dev  
-For each of these, on terminal, run command: sudo apt -y install dependencyname (e.g. sudo apt -y install libfontconfig1-dev)
+  
+For each of these, on terminal, run command: sudo apt -y install dependencyname (e.g. sudo apt -y install libfontconfig1-dev).  
 
 ## Bug fixes  
 Most modification has been about simplification, but there have been some bug fixes that have modified the results of the simulation. These are noted below:  
