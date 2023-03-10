@@ -85,8 +85,10 @@ visits_based_output <- NULL
 #z represents the index for all scenarios through all visit-based pathways
 
 for (z in 1:length(visit_pathway_vector)) {
-  # AMY: This changed from my version where you detected cores - is this faster
-  cl <- parallel::makeCluster(1)
+  # detectCores() but -1 as want to make you you have one left to do other
+  # stuff on. Cores are processors that can work on tasks. Then makecluster()
+  # to set the amount of clusters you want your code to run on
+  cl <- parallel::makeCluster(detectCores()-1)
   registerDoSNOW(cl)
   run <- 1
 
