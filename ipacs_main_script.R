@@ -13,7 +13,7 @@ library(here)
 rm(list = ls())
 wd <- setwd("~/Documents/IPACS_MODEL")
 
-# Name of file with model paramaters (should be stored in model_inputs folder)
+# Name of file with model parameters (should be stored in model_inputs folder)
 input_filename <- "IPACS_20230214_fix.xlsx"
 
 # Set manual parameters
@@ -34,5 +34,5 @@ print(difftime(Sys.time(), start_time), quote = FALSE)
 # Produce word document report using RMarkdown
 suppressWarnings({
   rmarkdown::render("ipacs_produce_report.Rmd",
-                    output_file = "outputs/IPACS Report")
+                    output_file = "outputs/ipacs_report")
 })
