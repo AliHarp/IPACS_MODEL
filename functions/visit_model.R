@@ -29,9 +29,7 @@ visit_srv_params <- visit_scenarios %>%
   as.list()
 
 # Parameters for sampling length of stay when have a normal distribution
-# AMY: Not sure why round down the mean length of stay to an integer
-# (e.g. mean_los[85] 18.7 goes to 18)
-visit_param_dist <- as.list(as.integer(visit_scenarios$mean_los))
+visit_param_dist <- as.list(visit_scenarios$mean_los)
 visit_param_sd <- as.list(rep(sd_los, nrow(visit_scenarios)))
 
 # Select arrivals, date and scenario, then pivot so each row is a date
