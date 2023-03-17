@@ -34,5 +34,5 @@ print(difftime(Sys.time(), start_time), quote = FALSE)
 # Produce word document report using RMarkdown
 suppressWarnings({
   rmarkdown::render("functions/ipacs_produce_report.Rmd",
-                    output_file = "outputs/ipacs_report")
+                    output_file = here("outputs", "ipacs_report"))
 })
