@@ -13,9 +13,6 @@ bed_new <- read.csv(here("outputs", "bed_output_using_IPACS_20230214_fix.csv"))
 bed_test <- read.csv(here("testing", "bed_testing_using_IPACS_20230214_fix.csv"))
 diffdf::diffdf(bed_new, bed_test)
 
-# No longer check using copy from original code, due to bug fix
-# Hence renamed visit_testing_prior_to_bug_fix_for_IPACS_20230214_fix.csv
-
 # Linting
 lint("ipacs_main_script.R")
 lint(here("functions", "set_up.R"))
