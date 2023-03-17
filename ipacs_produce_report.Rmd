@@ -42,7 +42,7 @@ visit_data <- read.csv(here("outputs", paste0("visit", output_suffix)))
 
 For each locality in BNSSG, and for each of P1, P2 and P3, modelled parameters and scenario combinations are displayed in the following two pages.  
 
-The subsequent pages output 9 sets of plots, each displaying the `r (ncol(arr_rates)-1)/6` scenario combinations for each of:  
+The subsequent pages output 9 sets of plots, each displaying the `r (ncol(bed_data)-1)/24` scenario combinations for each of:  
 
   * Number in service - the number of patients estimated to be utilising the service given service capacity;  
   
@@ -52,7 +52,7 @@ The subsequent pages output 9 sets of plots, each displaying the `r (ncol(arr_ra
   
   * Costs - total system cost (acute delay cost + community service cost).
 
-<!-- AMY: Need to change from arr_rates (created in bed_based scenarios), ncol(arr_rates)=73 -->
+<!-- Number of scenarios was calculated from arr_rates (a bed-based simulation dataframe) - changed to create from bed-based simulation output (bed_data) -->
 
 \newpage
 
