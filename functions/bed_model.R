@@ -12,11 +12,11 @@ for (x in df_list){
   assign(x[[1]], x[[2]] %>% filter(!str_detect(node, "P1")))
 }
 
-# # AMY: Same as visit model - just different dataframes + names
-# # Also NIQ is dtoc, rather than inq and nctr
+# AMY: Same as visit model - just different dataframes + names
+# Also NIQ is dtoc, rather than inq and nctr
 init_occ <- as.list(bed_scenarios$occ)
 init_niq <- as.list(bed_scenarios$dtoc)
-srv_dist<-as.list(bed_scenarios$los_dist)
+srv_dist <- as.list(bed_scenarios$los_dist)
 cap <- as.list(bed_scenarios$capacity)
 loss <- as.list(rep(0, nrow(bed_scenarios)))
 
@@ -33,7 +33,7 @@ srv_params <- bed_scenarios %>%
 # Parameters for sampling length of stay when distribution == norm
 # AMY: Same as visit model, just different dataframe names
 mean_los_bed <- as.list(bed_scenarios$mean_los)
-sd_los_bed <-as.list(rep(sd_los, nrow(bed_scenarios)))
+sd_los_bed <- as.list(rep(sd_los, nrow(bed_scenarios)))
 
 # Select arrivals, date and scenario, then pivot so each row is a date
 # and arrivals on that date, with columns for each scenario
@@ -54,7 +54,7 @@ rtdist <- function(n, params) {
 ptdist <- function(q, params) {
   do.call(paste0("p", node_srv_dist), c(list(q = q), params))
 }
-qtdist <-function(p, params) {
+qtdist <- function(p, params) {
   do.call(paste0("q", node_srv_dist), c(list(p = p), params))
 }
 
@@ -62,28 +62,28 @@ qtdist <-function(p, params) {
 simfn <- function(runs) {
   # Set seed to number of current run (from 1:nruns)
   set.seed(runs)
-  
+
   # Duration set to number of dates in arrivals
-  DUR <- nrow(node_arr_rates)
-  
+  dur <- nrow(node_arr_rates)
+
   # Create dataframe to store information about stay for each patient
   cal <- data.frame(id = integer(),
                     time = numeric(),
                     event = character(),
                     wait = numeric())
-  
+
   # Setup initial conditions
-  if (node_init_occ>0) {
+  if (node_init_occ > 0) {
     # Get LOS for each person in pathway by sampling from rlnorm with LOS params
     # Sample for the number of people already in pathway (node_init_occ)
     # Mean and SD of LOS distribution given by node_srv_params
     init_serv_arr_times <- rtdist(n = node_init_occ, params = node_srv_params)
-    
+
     # As they are already in system, want to make LOS shorter, so sample from
     # uniform distribution between 1 and the LOS just created
     init_serv_end_times <- sapply(init_serv_arr_times,
                                   function(x) runif(n = 1, min = 1, max = x))
-    
+
     # Add patients to cal
     cal <- rbind(cal, data.frame(id = 1:node_init_occ,
                                  time = init_serv_end_times,
@@ -97,16 +97,16 @@ simfn <- function(runs) {
   
   # For each date, get number of arrivals by sampling from poisson distribution,
   # and round to nearest integer
-  day_arr_times <- sapply(1:nrow(node_arr_rates), function(x)
-    round(rpois(n = 1,
-                lambda = node_arr_rates[x, arr_col_ind])))
+  day_arr_times <- sapply(seq_len(nrow(node_arr_rates)), function(x) {
+    round(rpois(n = 1, lambda = node_arr_rates[x, arr_col_ind]))
+  })
   
   # Find proportion of days where arrivals < 0
   arr_neg <- sum(day_arr_times < 0) / length(day_arr_times)
-  
+
   # If < 0, reset to 0
   day_arr_times[which(day_arr_times < 0)] <- 0
-  
+
   # For each day of simulation, sample values between 0 and 1 from uniform
   # distribution. Number of samples is the number of arrivals that day (0+).
   # Adds the day (x) - 1 to that calculation - so arrivals for day 1 are
@@ -131,7 +131,7 @@ simfn <- function(runs) {
   # AMY: What is this?
   # AMY: Above is all for 99 days, not 100 days. Does visits based have day 0?
   # I previously thought this might be fine
-  res <- data.frame(time = 0:(DUR),
+  res <- data.frame(time = 0:(dur),
                     occ = NA,
                     niq = NA,
                     arr_admit = 0,
@@ -143,7 +143,7 @@ simfn <- function(runs) {
   res$niq[1] <- niq
   res$occ[1] <- occ
 
-  while (tx <= (DUR) & nrow(cal) > 0) {
+  while (tx <= (dur) & nrow(cal) > 0) {
     # Indices of arrival or endsrv events with time > tx, then find index
     # of event with minimum of those times
     ind1 <- which(cal$time > tx & cal$event %in% c("arrival", "endsrv"))
@@ -159,7 +159,7 @@ simfn <- function(runs) {
     tx <- cal$time[ind]
     
     # Break loop if time is greater than simulation duration or nrow(cal)=0
-    if (tx > (DUR) | nrow(cal) == 0)
+    if (tx > (dur) | nrow(cal) == 0)
       break
     
     # Finds day by rounding up (i.e. 3.0 to 3.9999 would be day 4)

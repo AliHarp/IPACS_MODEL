@@ -22,15 +22,14 @@ dis_los <- function() {
 
   if (los_dist == "lnorm") {
     x <- round(do.call(rlnorm, c(list(1, los_lnorm_mean_sd))))
-    while (x <= 0 | x >= max_los) {
+    while (x <= 0 || x >= max_los) {
       x <- round(do.call(rlnorm, c(list(1, los_lnorm_mean_sd))))
     }
-  }
-  else {
+  } else {
     x <- round(do.call(paste0("r", los_dist),
                        c(list(1, los_norm_mean, los_norm_sd)
                        )))
-    while (x <= 0 | x >= max_los) {
+    while (x <= 0 || x >= max_los) {
       x <- round(do.call(paste0("r", los_dist),
                          c(list(1, los_norm_mean, los_norm_sd)
                          )))
@@ -56,7 +55,7 @@ dis_init_slots <- function() {
   # Cannot be (a) less than 0, (b) more than mean+SD*3, or (c) more than n_slots
   x <- round(rnorm(n = 1, mean = isr[z], sd = sd_isr[z]))
   max_v <- isr[z] + (sd_isr[z] * 3)
-  while (x <= 0 | x > max_v | x > n_slots[z]) {
+  while (x <= 0 || x > max_v || x > n_slots[z]) {
     x <- round(rnorm(n = 1, mean = isr[z], sd = sd_isr[z]))
   }
   return(x)
@@ -69,7 +68,7 @@ dis_end_slots <- function() {
   # Can't be less than 0 or max than mean+SD*3
   x <- round(rnorm(1, mean = end_sr[z], sd = sd_esr[z]))
   max_v <- end_sr[z] + (sd_esr[z] * 3)
-  while (x <= 0 | x > max_v) {
+  while (x <= 0 || x > max_v) {
     x <- round(rnorm(1, mean = end_sr[z], sd = sd_esr[z]))
   }
   return(x)
@@ -88,12 +87,12 @@ create_patient_df <- function(nrow) {
     wait_time = integer(), # Number of days spent in the queue
     exit = logical(), # Boolean variable, TRUE if the entity has left the system
     stringsAsFactors = FALSE)
-  df[nrow,] <- NA
+  df[nrow, ] <- NA
   return(df)
 }
 
 
-create_output_df <- function(nrow){
+create_output_df <- function(nrow) {
   # Create blank dataframe for output for visit simulation after warm-up
   df <- data.frame(
     RUNX = integer(), # Run number x
@@ -105,12 +104,12 @@ create_output_df <- function(nrow){
     res_used = numeric(), # Used slots
     res_idle = numeric(), # Idle slots
     in_sys = numeric()) # Number of patients in system
-  df[nrow,] <- NA
+  df[nrow, ] <- NA
   return(df)
 }
 
 
-create_wait_df <- function(){
+create_wait_df <- function() {
   # Create blank dataframe to store wait times
   df <- data.frame(
     RUNX = integer(),
@@ -118,13 +117,13 @@ create_wait_df <- function(){
     scen_ = character(),
     start_service = integer(),
     waittime = integer(),
-    stringsAsFactors = T
+    stringsAsFactors = TRUE
   )
   return(df)
 }
 
 
-create_summary_df <- function(nrow){
+create_summary_df <- function(nrow) {
   df <- data.frame(
     LOS = integer(),
     ISR = integer(),
@@ -138,18 +137,18 @@ create_summary_df <- function(nrow){
     res_idle = numeric(),
     in_sys = numeric()
   )
-  df[nrow,] <- NA
+  df[nrow, ] <- NA
   return(df)
 }
 
 
-add_patient <- function(in_system){
+add_patient <- function(in_system) {
   # in_system - are they already in system?
-  
+
   # Increment ID and npat
   id <- id + 1
   npat <- npat + 1
-  
+
   if (in_system == FALSE) {
     # Find LOS and required visits
     los <- dis_los()
@@ -179,9 +178,9 @@ add_patient <- function(in_system){
                                    length.out = templos))
     visit_vector <- tail(temp_visit_vector, los)
   }
-  
+
   req_visits[[id]] <- visit_vector
-  
+
   # Save to patients_inqueue dataframe
   patients$id[npat] <- id
   patients$los[npat] <- los
@@ -190,7 +189,7 @@ add_patient <- function(in_system){
   patients$end_service[npat] <- NA
   patients$wait_time[npat] <- 0
   patients$exit[npat] <- FALSE
-  
+
   # Planning service, check resources
   # Create temporary t for incrementing when no resources available
   tt <- t
@@ -203,13 +202,14 @@ add_patient <- function(in_system){
       patients$start_service[npat] <- tt
       patients$end_service[npat] <- tt + los_adj
       # Decrease capacity
-      resources[tt:(tt + los_adj), ] <- resources[tt:(tt + los_adj), ] - req_visits[[id]]
+      resources[tt:(tt + los_adj), ] <-
+        resources[tt:(tt + los_adj), ] - req_visits[[id]]
     } else {
       # If no sufficient resources, check for starting on the next day
       tt <- tt + 1
     }
   }
-  
+
   # Return changed objects that are needed (e.g. things we increment on
   # or dataframes we use elsewhere)
   return(list(id, npat, req_visits, patients, resources))

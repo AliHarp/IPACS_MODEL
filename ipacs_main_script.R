@@ -32,9 +32,9 @@ source(here("functions", "bed_model.R"))
 print(difftime(Sys.time(), start_time), quote = FALSE)
 
 # Produce word document report using RMarkdown
-Rmd_filename <- paste0("ipacs_report_using_",
+rmd_filename <- paste0("ipacs_report_using_",
                        gsub(".xlsx", "", input_filename))
 suppressWarnings({
   rmarkdown::render("functions/ipacs_produce_report.Rmd",
-                    output_file = here("outputs", Rmd_filename))
+                    output_file = here("outputs", rmd_filename))
 })

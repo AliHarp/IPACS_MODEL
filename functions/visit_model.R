@@ -213,15 +213,15 @@ for (z in seq_along(visit_pathway_vector)) {
 
   for (k in 1:nruns) {
     # Extract results for that run
-    r.out <- which(out[, "RUNX"] == k)
-    k.wait <- which(wait[, "RUNX"] == k)
+    r_out <- which(out[, "RUNX"] == k)
+    k_wait <- which(wait[, "RUNX"] == k)
     # Add results for that run
     # AMY: repetitive round(mean())
-    summary[k, "mean_wait"] <- round(mean(wait$waittime[k.wait]), 2)
-    summary[k, "q_length"] <- round(mean(out$q_length[r.out]), 2)
-    summary[k, "res_used"] <- round(mean(out$res_used[r.out]), 2)
-    summary[k, "res_idle"] <- round(mean(out$res_idle[r.out]), 2)
-    summary[k, "in_sys"] <- round(mean(out$in_sys[r.out]), 2)
+    summary[k, "mean_wait"] <- round(mean(wait$waittime[k_wait]), 2)
+    summary[k, "q_length"] <- round(mean(out$q_length[r_out]), 2)
+    summary[k, "res_used"] <- round(mean(out$res_used[r_out]), 2)
+    summary[k, "res_idle"] <- round(mean(out$res_idle[r_out]), 2)
+    summary[k, "in_sys"] <- round(mean(out$in_sys[r_out]), 2)
   }
 
   # Groups by day (e.g. day 1) and node (e.g. P1_B_BCap_Blos_Barr)
@@ -238,11 +238,11 @@ for (z in seq_along(visit_pathway_vector)) {
     ) %>%
     ungroup()
 
-  # Create node column by extractinh first two parts of the scenario
+  # Create node column by extracting first two parts of the scenario
   # (e.g. "P1_LocB", dropping "BCap_Bloc_BArr")
   ts_output$node <- sapply(ts_output$node, function(x) {
     paste(unlist(str_split(x, "_"))[1:2], collapse = "_")})
-  
+
   # Create costs column
   ts_output <- left_join(ts_output, costs_visit, by = "node") %>%
     mutate(cost = (niq * acute_dtoc) + (n_slots_used * community_cost))
