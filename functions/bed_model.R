@@ -1,44 +1,51 @@
+# Visit-based model (for P2 + P3 pathways) ------------------------------------
 
-############## Model for P2/P3 type pathways #####################
-##   PARAMETERS 
-###############################################################
+# Set up ----------------------------------------------------------------------
+
 # Select bed-based scenarios
-bed_scenarios <- scenarios %>% filter(!str_detect(node, "P1"))
-arr_rates_bed <- arr_scenarios %>% filter(!str_detect(node, "P1"))
-costs_bed <- costs %>% filter(!str_detect(node, "P1"))
-loss <- as.list(rep(0, nrow(bed_scenarios)))
+# AMY: This is same operation as visit_model, only different is "!" - could
+# change to function for both
+df_list <- list(list("bed_scenarios", scenarios),
+                list("arr_rates_bed", arr_scenarios),
+                list("costs_bed", costs))
+for (x in df_list){
+  assign(x[[1]], x[[2]] %>% filter(!str_detect(node, "P1")))
+}
 
-# CHANGE: nruns created in main script by setting as integer there instead
-
-# convert parameters to lists per node
+# # AMY: Same as visit model - just different dataframes + names
+# # Also NIQ is dtoc, rather than inq and nctr
 init_occ <- as.list(bed_scenarios$occ)
 init_niq <- as.list(bed_scenarios$dtoc)
-cap <- as.list(bed_scenarios$capacity)
 srv_dist<-as.list(bed_scenarios$los_dist)
+cap <- as.list(bed_scenarios$capacity)
+loss <- as.list(rep(0, nrow(bed_scenarios)))
 
-#parameters of LOS dist for bed based if los dist==rlnorm
-param_dist <- bed_scenarios %>% separate(los_params, into = c("mu", "sigma"), 
-                                         sep = ",")
-param_dist$mu <- as.double(param_dist$mu)
-param_dist$sigma <- as.double(param_dist$sigma)
-mu_sig_pair<-as.data.frame(cbind(param_dist$mu,param_dist$sigma))
-colnames(mu_sig_pair) <- NULL
-srv_params<-as.list(data.frame(t(mu_sig_pair)))
+# Parameters for sampling length of stay when distribution == rlnorm
+# AMY: Same as visit_model, just change dataframe names
+srv_params <- bed_scenarios %>%
+  separate(los_params, into = c("mu", "sigma"), sep = ",", convert = TRUE) %>%
+  select(mu, sigma) %>%
+  unname() %>%
+  t() %>%
+  data.frame() %>%
+  as.list()
 
-#else if los dist == norm
+# Parameters for sampling length of stay when distribution == norm
+# AMY: Same as visit model, just different dataframe names
 mean_los_bed <- as.list(bed_scenarios$mean_los)
 sd_los_bed <-as.list(rep(sd_los, nrow(bed_scenarios)))
 
-#arrivals
-#arrivalsSB$scenarios <- paste0(arrivalsSB$node, '_', arrivalsSB$scenario)
-arr_rates <- arr_rates_bed %>% 
-  dplyr::select(arrivals, date, S) %>%
-  pivot_wider(names_from=S,
-              values_from=arrivals) %>%
-  arrange(date)
-arr_rates<-as.data.frame(arr_rates)
-bed_pathway_vector <- dput(colnames(arr_rates[-1]))
-####################
+# Select arrivals, date and scenario, then pivot so each row is a date
+# and arrivals on that date, with columns for each scenario
+# AMY: Same as visit model, just different dataframe names
+arr_rates <- arr_rates_bed %>%
+  select(arrivals, date, S) %>%
+  pivot_wider(names_from = S, values_from = arrivals) %>%
+  arrange(date) %>%
+  as.data.frame()
+
+# Create vector with each scenario name (dput is just to print to screen)
+bed_pathway_vector <- dput(colnames(arr_rates %>% select(-date)))
 
 rtdist<-function(n,params) do.call(paste0("r",node_srv_dist),c(list(n=n),params))
 ptdist<-function(q,params) do.call(paste0("p",node_srv_dist),c(list(q=q),params))
