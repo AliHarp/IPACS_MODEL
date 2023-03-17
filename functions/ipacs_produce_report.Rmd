@@ -33,10 +33,10 @@ visit_data <- read.csv(here("outputs", paste0("visit", output_suffix)))
 <!-- CHANGE: Changed to refer to visit_data (imported) rather than arr_rates (created in bed_based scenarios) -->
 
 ### IPACS models the following processes at the locality level:  
-  ![Process map for P1,2,3](images/flowmap.png)  
+  ![Process map for P1,2,3](../images/flowmap.png)  
   
 ### The workflow for creating this document is as follows:
-  ![Routine Report workflow](images/wflow.png)
+  ![Routine Report workflow](../images/wflow.png)
 
 ### Model Scenarios
 
