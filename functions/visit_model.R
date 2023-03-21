@@ -5,22 +5,20 @@
 source(here("functions", "visit_functions.R"))
 
 # Extract visit-based scenarios (P1) from imported dataframes
-df_list <- list(list("visit_scenarios", scenarios),
-                list("arr_scenarios_v", arr_scenarios),
-                list("costs_visit", costs))
-for (x in df_list){
-  assign(x[[1]], x[[2]] %>% filter(str_detect(node, "P1")))
+for (df in list("scenarios", "arr_scenarios", "costs")){
+  df_name <- paste0(df, "_visit")
+  assign(df_name, get(df) %>% filter(str_detect(node, "P1")))
 }
 
 # Create lists containing parameters from dataframes
-visit_init_occ <- as.list(visit_scenarios$occ)
-visit_init_q <- as.list(visit_scenarios$dtoc)
-visit_srv_dist <- as.list(visit_scenarios$los_dist)
-visit_cap <- as.integer(as.list(visit_scenarios$capacity))
-visit_loss <- as.list(rep(0, nrow(visit_scenarios)))
+visit_init_occ <- as.list(scenarios_visit$occ)
+visit_init_q <- as.list(scenarios_visit$dtoc)
+visit_srv_dist <- as.list(scenarios_visit$los_dist)
+visit_cap <- as.integer(as.list(scenarios_visit$capacity))
+visit_loss <- as.list(rep(0, nrow(scenarios_visit)))
 
 # Parameters for sampling length of stay when have a log-normal distribution
-visit_srv_params <- visit_scenarios %>%
+visit_srv_params <- scenarios_visit %>%
   separate(los_params, into = c("mu", "sigma"), sep = ",", convert = TRUE) %>%
   select(mu, sigma) %>%
   unname() %>%
@@ -29,12 +27,12 @@ visit_srv_params <- visit_scenarios %>%
   as.list()
 
 # Parameters for sampling length of stay when have a normal distribution
-visit_param_dist <- as.list(visit_scenarios$mean_los)
-visit_param_sd <- as.list(rep(sd_los, nrow(visit_scenarios)))
+visit_param_dist <- as.list(scenarios_visit$mean_los)
+visit_param_sd <- as.list(rep(sd_los, nrow(scenarios_visit)))
 
 # Select arrivals, date and scenario, then pivot so each row is a date
 # and arrivals on that date, with columns for each scenario
-arr_rates_visit_p1 <- arr_scenarios_v %>%
+arr_rates_visit_p1 <- arr_scenarios_visit %>%
   select(arrivals, date, S) %>%
   pivot_wider(names_from = S, values_from = arrivals) %>%
   arrange(date)
@@ -44,10 +42,10 @@ visit_pathway_vector <- dput(colnames(arr_rates_visit_p1 %>% select(-date)))
 
 # Initial service rate and end service rate, and their standard deviation
 # Create lists with sd_isr or sd_esr repeated for number of visit scenarios
-isr <- as.integer(visit_scenarios$IVR)
-end_sr <- as.integer(visit_scenarios$FVR)
-sd_isr <- as.double(rep(sd_isr, nrow(visit_scenarios)))
-sd_esr <- as.double(rep(sd_esr, nrow(visit_scenarios)))
+isr <- as.integer(scenarios_visit$IVR)
+end_sr <- as.integer(scenarios_visit$FVR)
+sd_isr <- as.double(rep(sd_isr, nrow(scenarios_visit)))
+sd_esr <- as.double(rep(sd_esr, nrow(scenarios_visit)))
 
 # Create n_slots, the number of visit slots available per day. This is based
 # on an average visit rate (as from mean of isr and end_sr) multiplied by the

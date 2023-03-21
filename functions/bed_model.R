@@ -5,24 +5,22 @@
 # Select bed-based scenarios
 # AMY: This is same operation as visit_model, only different is "!" - could
 # change to function for both
-df_list <- list(list("bed_scenarios", scenarios),
-                list("arr_rates_bed", arr_scenarios),
-                list("costs_bed", costs))
-for (x in df_list){
-  assign(x[[1]], x[[2]] %>% filter(!str_detect(node, "P1")))
+for (df in list("scenarios", "arr_scenarios", "costs")){
+  df_name <- paste0(df, "_bed")
+  assign(df_name, get(df) %>% filter(!str_detect(node, "P1")))
 }
 
 # AMY: Same as visit model - just different dataframes + names
 # Also NIQ is dtoc, rather than inq and nctr
-init_occ <- as.list(bed_scenarios$occ)
-init_niq <- as.list(bed_scenarios$dtoc)
-srv_dist <- as.list(bed_scenarios$los_dist)
-cap <- as.list(bed_scenarios$capacity)
-loss <- as.list(rep(0, nrow(bed_scenarios)))
+init_occ <- as.list(scenarios_bed$occ)
+init_niq <- as.list(scenarios_bed$dtoc)
+srv_dist <- as.list(scenarios_bed$los_dist)
+cap <- as.list(scenarios_bed$capacity)
+loss <- as.list(rep(0, nrow(scenarios_bed)))
 
 # Parameters for sampling length of stay when distribution == rlnorm
 # AMY: Same as visit_model, just change dataframe names
-srv_params <- bed_scenarios %>%
+srv_params <- scenarios_bed %>%
   separate(los_params, into = c("mu", "sigma"), sep = ",", convert = TRUE) %>%
   select(mu, sigma) %>%
   unname() %>%
@@ -32,13 +30,13 @@ srv_params <- bed_scenarios %>%
 
 # Parameters for sampling length of stay when distribution == norm
 # AMY: Same as visit model, just different dataframe names
-mean_los_bed <- as.list(bed_scenarios$mean_los)
-sd_los_bed <- as.list(rep(sd_los, nrow(bed_scenarios)))
+mean_los_bed <- as.list(scenarios_bed$mean_los)
+sd_los_bed <- as.list(rep(sd_los, nrow(scenarios_bed)))
 
 # Select arrivals, date and scenario, then pivot so each row is a date
 # and arrivals on that date, with columns for each scenario
 # AMY: Same as visit model, just different dataframe names
-arr_rates <- arr_rates_bed %>%
+arr_rates <- arr_scenarios_bed %>%
   select(arrivals, date, S) %>%
   pivot_wider(names_from = S, values_from = arrivals) %>%
   arrange(date) %>%
@@ -90,17 +88,17 @@ simfn <- function(runs) {
                                  event = "endsrv",
                                  wait = NA))
   }
-  
+
   # Select column that is not date (can't use name as different for each
   # scenario and location
   arr_col_ind <- -which(names(node_arr_rates) %in% c("date"))
-  
+
   # For each date, get number of arrivals by sampling from poisson distribution,
   # and round to nearest integer
   day_arr_times <- sapply(seq_len(nrow(node_arr_rates)), function(x) {
     round(rpois(n = 1, lambda = node_arr_rates[x, arr_col_ind]))
   })
-  
+
   # Find proportion of days where arrivals < 0
   arr_neg <- sum(day_arr_times < 0) / length(day_arr_times)
 
@@ -111,22 +109,22 @@ simfn <- function(runs) {
   # distribution. Number of samples is the number of arrivals that day (0+).
   # Adds the day (x) - 1 to that calculation - so arrivals for day 1 are
   # between 0 and 1, arrivals for day 19 are between 18 and 19, etc.
-  arr_times <- unlist(sapply(1:length(day_arr_times), function(x) {
+  arr_times <- unlist(sapply(seq_along(day_arr_times), function(x) {
     sort(runif(n = day_arr_times[x],
                min = 0,
                max = 1) + x - 1)
   }))
-  
+
   # Add patient details to cal
   cal <- rbind(cal, data.frame(
     id = (node_init_occ + 1):(node_init_occ + length(arr_times)),
     time = arr_times,
     event = "arrival",
     wait = NA))
-  
+
   # Create tx, which will hold the time
   tx <- 0
-  
+
   # Create res
   # AMY: What is this?
   # AMY: Above is all for 99 days, not 100 days. Does visits based have day 0?
@@ -137,13 +135,13 @@ simfn <- function(runs) {
                     arr_admit = 0,
                     arr_no_admit = 0,
                     mean_wait = 0)
-  
+
   niq <- node_init_niq # number in queue
   occ <- node_init_occ # occupancy (number in unit)
   res$niq[1] <- niq
   res$occ[1] <- occ
 
-  while (tx <= (dur) & nrow(cal) > 0) {
+  while (tx <= (dur) && nrow(cal) > 0) {
     # Indices of arrival or endsrv events with time > tx, then find index
     # of event with minimum of those times
     ind1 <- which(cal$time > tx & cal$event %in% c("arrival", "endsrv"))
@@ -157,11 +155,11 @@ simfn <- function(runs) {
 
     # Set tx to the minimum time
     tx <- cal$time[ind]
-    
+
     # Break loop if time is greater than simulation duration or nrow(cal)=0
-    if (tx > (dur) | nrow(cal) == 0)
+    if (tx > (dur) || nrow(cal) == 0)
       break
-    
+
     # Finds day by rounding up (i.e. 3.0 to 3.9999 would be day 4)
     # 3.0 would go to day 4, but as we sample arrival from 0 to 1, we wouldn't
     # necessarily be sure it is day 3 or day 4, so this is an assumption
@@ -177,7 +175,8 @@ simfn <- function(runs) {
                                       time = tx,
                                       event = "startsrv",
                                       wait = NA))
-        los <- do.call(paste0("r", node_srv_dist), c(list(n = 1), node_srv_params))
+        los <- do.call(paste0("r", node_srv_dist),
+                       c(list(n = 1), node_srv_params))
         cal <- rbind(cal, data.frame(id = cal$id[ind],
                                      time = tx + los,
                                      event = "endsrv",
@@ -202,23 +201,23 @@ simfn <- function(runs) {
         occ <- occ - 1
       } else {
         # Admit patient (backfill bed)
-        los <- do.call(paste0("r", node_srv_dist), c(list(n = 1), node_srv_params))
-        # Select patient who's been waiting longest (and has not started/finished service)
-        #poss_ids<-setdiff(unique(cal$id),cal$id[which(cal$event=="startsrv")])
-        poss_ids3 <-
-          setdiff(unique(cal$id), cal$id[which(cal$event == "endsrv")])
+        los <- do.call(paste0("r", node_srv_dist),
+                       c(list(n = 1), node_srv_params))
+        # Select patient who's been waiting longest (and has not
+        # started/finished service)
+        poss_ids3 <- setdiff(unique(cal$id),
+                             cal$id[which(cal$event == "endsrv")])
         if (length(poss_ids3) > 0) {
-          #poss_ids2<-setdiff(unique(cal$id),cal$id[which(cal$event=="startsrv"||cal$event=="endsrv")])
-          waits <-
-            data.frame(id = poss_ids3, waits = cal$time[which((cal$id %in% poss_ids3) &
-                                                                (cal$event == "arrival"))] - tx)
-          #waits<-data.frame(id=poss_ids3,waits=cal$time[which((cal$id %in% poss_ids3))]-tx)
+          waits <- data.frame(id = poss_ids3,
+                              waits = cal$time[
+                                which((cal$id %in% poss_ids3) &
+                                        (cal$event == "arrival"))] - tx)
           admit_id <- waits$id[which.min(waits$waits)]
           admit_wait <- waits$waits[which.min(waits$waits)]
           cal <- rbind(cal, data.frame(id = admit_id,
                                        time = tx,
                                        event = "startsrv",
-                                       wait = admit_wait ))
+                                       wait = admit_wait))
           cal <- rbind(cal, data.frame(id = admit_id,
                                        time = tx + los,
                                        event = "endsrv",
@@ -259,10 +258,10 @@ simfn <- function(runs) {
 
 # Run simulation ---------------------------------------------------------------
 # Record time taken
-start.time <- Sys.time()
+start_time_bed <- Sys.time()
 
 # For each pathway main loop of results
-RES <- lapply(1:(ncol(arr_rates) - 1), function(node) {
+sim_res <- lapply(1:(ncol(arr_rates) - 1), function(node) {
   # For that pathway and simulation, assign parameters (initial occupancy,
   # initial queue, arrival rates, LOS distribution parameters, capacity, loss
   # (balking condition))
@@ -273,75 +272,81 @@ RES <- lapply(1:(ncol(arr_rates) - 1), function(node) {
   node_srv_params <- srv_params[[node]]
   node_cap <- cap[[node]]
   node_loss <- loss[[node]]
-  
+
   # Intialisation for parallel processing
   # detectCores() but -1 as want to make you you have one left to do other
   # stuff on, then makecluster() to set the amount of clusters you want your
   # code to run on
   cl <- parallel::makeCluster(detectCores() - 1)
 
-  # Create a cluster with all parameters needed for running simfn 
+  # Create a cluster with all parameters needed for running simfn
   clusterExport(cl = cl,
                 varlist = c("node", "node_init_occ", "node_init_niq",
                             "node_arr_rates", "node_srv_dist",
                             "node_srv_params", "node_cap", "node_loss",
-                            "rtdist", "ptdist", "qtdist"), 
+                            "rtdist", "ptdist", "qtdist"),
                 envir = environment())
   clusterEvalQ(cl = cl, c(library(tidyr), library(dplyr)))
 
   # Apply using parallel processing simfn for nruns time using information in cl
-  tRES <- parLapply(cl, 1:nruns, simfn)
+  tres <- parLapply(cl, 1:nruns, simfn)
   stopCluster(cl)
 
-  tRES1 <- do.call("bind_rows", lapply(1:length(tRES), function(x) tRES[[x]][[1]]))
-  # tRES2 has cols with node (i.e. (1) pathway and scenario number, (2) run number, (3) arr_neg)
+  tres1 <- do.call("bind_rows",
+                   lapply(seq_along(tres), function(x) tres[[x]][[1]]))
+  # tres2 has cols with node (i.e. (1) pathway and scenario number,
+  # (2) run number, (3) arr_neg)
 
-  tRES2 <- do.call("bind_rows", lapply(1:length(tRES), function(x) tRES[[x]][[2]]))
+  tres2 <- do.call("bind_rows",
+                   lapply(seq_along(tres), function(x) tres[[x]][[2]]))
 
-  return(list(tRES1, tRES2))
+  return(list(tres1, tres2))
 })
 
-RES1 <- do.call("bind_rows", lapply(1:length(RES), function(x) RES[[x]][[1]]))
-RES2 <- do.call("bind_rows", lapply(1:length(RES), function(x) RES[[x]][[2]]))
+res1 <- do.call("bind_rows", lapply(seq_along(sim_res),
+                                    function(x) sim_res[[x]][[1]]))
+res2 <- do.call("bind_rows", lapply(seq_along(sim_res),
+                                    function(x) sim_res[[x]][[2]]))
 
-RES1$mean_wait[is.nan(RES1$mean_wait)] <- 0
+res1$mean_wait[is.nan(res1$mean_wait)] <- 0
 
 # Print processing time
-print(difftime(Sys.time(), start.time), quote = FALSE)
+print(difftime(Sys.time(), start_time_bed), quote = FALSE)
 
 # Find average results for report ----------------------------------------------
 
-RES1q <- RES1 %>% 
+res1q <- res1 %>%
   pivot_longer(
     cols = c(occ, niq, arr_admit, arr_no_admit, mean_wait),
     names_to = "measure",
     values_to = "value") %>%
-  group_by(node, time, measure) %>% summarise(mean = mean(value, na.rm = TRUE))
+  group_by(node, time, measure) %>%
+  summarise(mean = mean(value, na.rm = TRUE))
 
 cap_size <- as.numeric()
-for (x in 1:length(RES1q$node)) {
-  cap_size[x] <- cap[[RES1q$node[x]]]
+for (x in seq_along(res1q$node)) {
+  cap_size[x] <- cap[[res1q$node[x]]]
 }
-RES1q <- cbind(RES1q, cap_size)
-colnames(RES1q)[5] <- "capacity"
+res1q <- cbind(res1q, cap_size)
+colnames(res1q)[5] <- "capacity"
 
-beds_required <- lapply(1:length(bed_pathway_vector),
-                        function(x)
-                          RES1q$mean[(RES1q$node == x &
-                                        RES1q$measure == "occ" &
-                                        RES1q$time < nrow(arr_rates))])
+beds_required <- lapply(seq_along(bed_pathway_vector), function(x) {
+  res1q$mean[(res1q$node == x &
+                res1q$measure == "occ" &
+                res1q$time < nrow(arr_rates))]
+  })
 
-niq_result <- lapply(1:length(bed_pathway_vector),
-                     function(x)
-                       RES1q$mean[(RES1q$node == x &
-                                     RES1q$measure == "niq" &
-                                     RES1q$time < nrow(arr_rates))])
+niq_result <- lapply(seq_along(bed_pathway_vector), function(x) {
+  res1q$mean[(res1q$node == x &
+                res1q$measure == "niq" &
+                res1q$time < nrow(arr_rates))]
+  })
 
-wait_result <- lapply(1:length(bed_pathway_vector),
-                      function(x)
-                        RES1q$mean[(RES1q$node == x &
-                                      RES1q$measure == "mean_wait" &
-                                      RES1q$time < nrow(arr_rates))])
+wait_result <- lapply(seq_along(bed_pathway_vector), function(x) {
+  res1q$mean[(res1q$node == x &
+                res1q$measure == "mean_wait" &
+                res1q$time < nrow(arr_rates))]
+  })
 
 # Create cost columns
 p2_beds_req <- beds_required[1:36]
@@ -353,25 +358,22 @@ beds_cost_comm <- c(p2_beds_cost, p3_beds_cost)
 beds_cost <- mapply("+", niq_cost, beds_cost_comm, SIMPLIFY = FALSE)
 
 # Create output dataframe
-MeansOutput <-cbind(
-    data.frame(arr_rates$date[1:length(arr_rates$date)]),
+meansoutput <- cbind(
+    data.frame(arr_rates$date[seq_along(arr_rates$date)]),
     data.frame(round(data.frame(beds_required))),
     data.frame(round(data.frame(niq_result))),
     data.frame(round(data.frame(wait_result))),
     data.frame(round(data.frame(beds_cost)))
 )
-colnames <- cbind(c('date',
+colnames <- cbind(c("date",
                     (paste0(bed_pathway_vector, "__occ")),
                     (paste0(bed_pathway_vector, "__niq")),
                     (paste0(bed_pathway_vector, "__wait")),
                     (paste0(bed_pathway_vector, "__cost"))))
-colnames(MeansOutput) <- colnames
+colnames(meansoutput) <- colnames
 
 # Save to excel, with filename based on the input file
-write.csv(MeansOutput,
-          paste0(
-            "outputs/bed_output_using_",
-            gsub(".xlsx", "", input_filename),
-            ".csv"
-          ),
+write.csv(meansoutput,
+          paste0("outputs/bed_output_using_",
+                 gsub(".xlsx", "", input_filename), ".csv"),
           row.names = FALSE)
