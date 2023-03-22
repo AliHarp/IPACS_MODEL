@@ -29,6 +29,7 @@ start_time <- Sys.time()
 source(here("functions", "set_up.R"))
 source(here("functions", "visit_functions.R"))
 source(here("functions", "visit_model.R"))
+source(here("functions", "bed_functions.R"))
 source(here("functions", "bed_model.R"))
 print(difftime(Sys.time(), start_time), quote = FALSE)
 
