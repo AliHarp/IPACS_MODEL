@@ -27,6 +27,7 @@ warmup <- 0
 # Run model - P1 (visit) then P2 and P3 (bed) simulation - and print time taken
 start_time <- Sys.time()
 source(here("functions", "set_up.R"))
+source(here("functions", "visit_functions.R"))
 source(here("functions", "visit_model.R"))
 source(here("functions", "bed_model.R"))
 print(difftime(Sys.time(), start_time), quote = FALSE)
