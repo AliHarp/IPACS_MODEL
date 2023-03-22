@@ -2,43 +2,17 @@
 
 # Set up ----------------------------------------------------------------------
 
-source(here("functions", "visit_functions.R"))
-
-# Extract visit-based scenarios (P1) from imported dataframes
-for (df in list("scenarios", "arr_scenarios", "costs")){
-  df_name <- paste0(df, "_visit")
-  assign(df_name, get(df) %>% filter(str_detect(node, "P1")))
+# Create objects for simulation using setup_all(), returning list of 2 where
+# 1 contains object names and 2 contains the objects. Extract from list into
+# workspace using assign()
+# AMY: arr_scenarios not used outside function
+setup_visit <- setup_all("visit")
+for (i in seq_along(setup_visit[[1]])){
+  assign(setup_visit[[1]][i], setup_visit[[2]][[i]])
 }
 
-# Create lists containing parameters from dataframes
-visit_init_occ <- as.list(scenarios_visit$occ)
-visit_init_q <- as.list(scenarios_visit$dtoc)
-visit_srv_dist <- as.list(scenarios_visit$los_dist)
-visit_cap <- as.integer(as.list(scenarios_visit$capacity))
-visit_loss <- as.list(rep(0, nrow(scenarios_visit)))
-
-# Parameters for sampling length of stay when have a log-normal distribution
-visit_srv_params <- scenarios_visit %>%
-  separate(los_params, into = c("mu", "sigma"), sep = ",", convert = TRUE) %>%
-  select(mu, sigma) %>%
-  unname() %>%
-  t() %>%
-  data.frame() %>%
-  as.list()
-
-# Parameters for sampling length of stay when have a normal distribution
-visit_param_dist <- as.list(scenarios_visit$mean_los)
-visit_param_sd <- as.list(rep(sd_los, nrow(scenarios_visit)))
-
-# Select arrivals, date and scenario, then pivot so each row is a date
-# and arrivals on that date, with columns for each scenario
-arr_rates_visit_p1 <- arr_scenarios_visit %>%
-  select(arrivals, date, S) %>%
-  pivot_wider(names_from = S, values_from = arrivals) %>%
-  arrange(date)
-
 # Create vector with each scenario name (dput is just to print to screen)
-visit_pathway_vector <- dput(colnames(arr_rates_visit_p1 %>% select(-date)))
+visit_pathway_vector <- dput(colnames(arr_rates_visit %>% select(-date)))
 
 # Initial service rate and end service rate, and their standard deviation
 # Create lists with sd_isr or sd_esr repeated for number of visit scenarios
@@ -49,8 +23,8 @@ sd_esr <- as.double(rep(sd_esr, nrow(scenarios_visit)))
 
 # Create n_slots, the number of visit slots available per day. This is based
 # on an average visit rate (as from mean of isr and end_sr) multiplied by the
-# capacity for P1 (visit_cap)
-n_slots  <- visit_cap * mean(c(isr, end_sr))
+# capacity for P1 (cap_visit)
+n_slots  <- cap_visit * mean(c(isr, end_sr))
 
 # Create object to store outputs from each scenario
 visits_based_output <- NULL
@@ -96,7 +70,7 @@ for (z in seq_along(visit_pathway_vector)) {
 
     ### Initial conditions (already in P1) ------------------------------------
     # For each patient...
-    for (j in 1:visit_init_occ[[z]]) {
+    for (j in 1:init_occ_visit[[z]]) {
       add_patient_output <- add_patient(in_system = TRUE)
       id <- add_patient_output[[1]]
       npat <- add_patient_output[[2]]
@@ -107,7 +81,7 @@ for (z in seq_along(visit_pathway_vector)) {
 
     ### Initial conditions (waiting to go to P1) ------------------------------
     # For each patient...
-    for (j in 1:visit_init_q[[z]]) {
+    for (j in 1:init_niq_visit[[z]]) {
       add_patient_output <- add_patient(in_system = FALSE)
       id <- add_patient_output[[1]]
       npat <- add_patient_output[[2]]
@@ -124,7 +98,7 @@ for (z in seq_along(visit_pathway_vector)) {
       # Sample from poisson distribution to get number of arrivals
       # t is the day, and z+1 is the appropriate pathway/location/scenario
       narr <- round(rpois(n = 1,
-                          lambda = as.numeric(arr_rates_visit_p1[t, z + 1])))
+                          lambda = as.numeric(arr_rates_visit[t, z + 1])))
 
       # If there are arrivals...
       if (narr > 0) {
@@ -202,7 +176,7 @@ for (z in seq_along(visit_pathway_vector)) {
 
   # Create dataframe for summary information from each run
   summary <- create_summary_df(nruns)
-  summary$LOS <- 1 / visit_param_dist[[z]]
+  summary$LOS <- 1 / mean_los_visit[[z]]
   summary$ISR <- isr[z]
   summary$nruns <- nruns
   summary$sim_length <- sim_length
@@ -262,7 +236,7 @@ for (z in seq_along(visit_pathway_vector)) {
 # Extract and pivot results for NIQ, OCC, wait and costs, then append together,
 # along with the dates
 outcomes <- c("niq", "occ", "wait", "cost")
-ptvisits_list <- list(arr_rates_visit_p1["date"])
+ptvisits_list <- list(arr_rates_visit["date"])
 for (i in seq_along(outcomes)){
   ptvisits_list[[i + 1]] <- visits_based_output[c("day", "scen_",
                                                   outcomes[i])] %>%

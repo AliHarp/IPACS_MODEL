@@ -13,10 +13,10 @@ dis_los <- function() {
   # los_norm_mean - The mean for the other distribution type
   # los_norm_sd - The SD for the other distribution type
 
-  los_dist <- visit_srv_dist[[z]]
-  los_lnorm_mean_sd <- visit_srv_params[[z]]
-  los_norm_mean <- visit_param_dist[[z]]
-  los_norm_sd <- visit_param_sd[[z]]
+  los_dist <- srv_dist_visit[[z]]
+  los_lnorm_mean_sd <- srv_params_visit[[z]]
+  los_norm_mean <- mean_los_visit[[z]]
+  los_norm_sd <- sd_los_visit[[z]]
 
   max_los <- los_norm_mean + los_norm_sd * 3
 
