@@ -2,48 +2,14 @@
 
 # Set up ----------------------------------------------------------------------
 
-# Select bed-based scenarios
-# AMY: This is same operation as visit_model, only different is "!" - could
-# change to function for both
-for (df in list("scenarios", "arr_scenarios", "costs")){
-  df_name <- paste0(df, "_bed")
-  assign(df_name, get(df) %>% filter(!str_detect(node, "P1")))
+# Create objects for simulation using setup_all(), returning list of 2 where
+# 1 contains object names and 2 contains the objects. Extract from list into
+# workspace using assign()
+# AMY: mean_los_bed and sd_los_bed not used
+setup_bed <- setup_all("bed")
+for (i in seq_along(setup_bed[[1]])){
+  assign(setup_bed[[1]][i], setup_bed[[2]][[i]])
 }
-
-# AMY: Same as visit model - just different dataframes + names
-# Also NIQ is dtoc, rather than inq and nctr
-init_occ <- as.list(scenarios_bed$occ)
-init_niq <- as.list(scenarios_bed$dtoc)
-srv_dist <- as.list(scenarios_bed$los_dist)
-cap <- as.list(scenarios_bed$capacity)
-loss <- as.list(rep(0, nrow(scenarios_bed)))
-
-# Parameters for sampling length of stay when distribution == rlnorm
-# AMY: Same as visit_model, just change dataframe names
-srv_params <- scenarios_bed %>%
-  separate(los_params, into = c("mu", "sigma"), sep = ",", convert = TRUE) %>%
-  select(mu, sigma) %>%
-  unname() %>%
-  t() %>%
-  data.frame() %>%
-  as.list()
-
-# Parameters for sampling length of stay when distribution == norm
-# AMY: Same as visit model, just different dataframe names
-mean_los_bed <- as.list(scenarios_bed$mean_los)
-sd_los_bed <- as.list(rep(sd_los, nrow(scenarios_bed)))
-
-# Select arrivals, date and scenario, then pivot so each row is a date
-# and arrivals on that date, with columns for each scenario
-# AMY: Same as visit model, just different dataframe names
-arr_rates <- arr_scenarios_bed %>%
-  select(arrivals, date, S) %>%
-  pivot_wider(names_from = S, values_from = arrivals) %>%
-  arrange(date) %>%
-  as.data.frame()
-
-# Create vector with each scenario name (dput is just to print to screen)
-bed_pathway_vector <- dput(colnames(arr_rates %>% select(-date)))
 
 # Functions for sampling from LOS distribution
 # AMY: Some not used (in clusterEXPORT but not scripts - so either change
@@ -277,17 +243,17 @@ start_time_bed <- Sys.time()
 
 # For each pathway/location/scenario, run the simulation (nruns times)
 # Saves results as sim_res, a list
-sim_res <- lapply(1:(ncol(arr_rates) - 1), function(node) {
+sim_res <- lapply(1:(ncol(arr_rates_bed) - 1), function(node) {
   # For that pathway and simulation, assign parameters (initial occupancy,
   # initial queue, arrival rates, LOS distribution parameters, capacity, loss
   # (balking condition))
-  node_init_occ <- as.numeric(init_occ[[node]])
-  node_init_niq <- as.numeric(init_niq[[node]])
-  node_arr_rates <- arr_rates %>% select(date, bed_pathway_vector[node])
-  node_srv_dist <- srv_dist[[node]]
-  node_srv_params <- srv_params[[node]]
-  node_cap <- cap[[node]]
-  node_loss <- loss[[node]]
+  node_init_occ <- as.numeric(init_occ_bed[[node]])
+  node_init_niq <- as.numeric(init_niq_bed[[node]])
+  node_arr_rates <- arr_rates_bed %>% select(date, pathway_vector_bed[node])
+  node_srv_dist <- srv_dist_bed[[node]]
+  node_srv_params <- srv_params_bed[[node]]
+  node_cap <- cap_bed[[node]]
+  node_loss <- loss_bed[[node]]
 
   # Intialisation for parallel processing
   # detectCores() but -1 as want to make you you have one left to do other
@@ -346,19 +312,19 @@ res1q <- res1 %>%
 # Add column to res1q with capacity, based on node number referencing to cap
 cap_size <- as.numeric()
 for (x in seq_along(res1q$node)) {
-  cap_size[x] <- cap[[res1q$node[x]]]
+  cap_size[x] <- cap_bed[[res1q$node[x]]]
 }
 res1q["capacity"] <- cap_size
 
-# For length of bed_pathway_vector (which contains each location, pathway and
+# For length of pathway_vector_bed (which contains each location, pathway and
 # scenario combination)....
 # Go to each node number, and find mean of given metric, based on results from
 # time 0 to 180 (not for time 181)
 find_mean <- function(measure) {
-  output_object <- lapply(seq_along(bed_pathway_vector), function(x) {
+  output_object <- lapply(seq_along(pathway_vector_bed), function(x) {
     res1q$mean[(res1q$node == x &
                   res1q$measure == measure &
-                  res1q$time < nrow(arr_rates))]
+                  res1q$time < nrow(arr_rates_bed))]
   })
   return(output_object)
 }
@@ -368,8 +334,8 @@ wait_result <- find_mean("mean_wait")
 
 # Create cost columns ---------------------------------------------------------
 # Seperate P2 and P3 occupancy (beds_req)
-p2_beds_req <- beds_required[grep("P2", bed_pathway_vector)]
-p3_beds_req <- beds_required[grep("P3", bed_pathway_vector)]
+p2_beds_req <- beds_required[grep("P2", pathway_vector_bed)]
+p3_beds_req <- beds_required[grep("P3", pathway_vector_bed)]
 
 # Multiply occupancy by the costs provided by costs_bed
 # This currently assumes that every location has same costs
@@ -396,17 +362,17 @@ beds_cost <- mapply("+", niq_cost, beds_cost_comm, SIMPLIFY = FALSE)
 # Create output dataframe with mean result for each measure for each
 # pathway/scenario/location, with rows for each day (1-181)
 meansoutput <- cbind(
-    data.frame(arr_rates$date),
+    data.frame(arr_rates_bed$date),
     data.frame(round(data.frame(beds_required))),
     data.frame(round(data.frame(niq_result))),
     data.frame(round(data.frame(wait_result))),
     data.frame(round(data.frame(beds_cost)))
 )
 colnames <- cbind(c("date",
-                    (paste0(bed_pathway_vector, "__occ")),
-                    (paste0(bed_pathway_vector, "__niq")),
-                    (paste0(bed_pathway_vector, "__wait")),
-                    (paste0(bed_pathway_vector, "__cost"))))
+                    (paste0(pathway_vector_bed, "__occ")),
+                    (paste0(pathway_vector_bed, "__niq")),
+                    (paste0(pathway_vector_bed, "__wait")),
+                    (paste0(pathway_vector_bed, "__cost"))))
 colnames(meansoutput) <- colnames
 
 # Save to excel, with filename based on the input file
