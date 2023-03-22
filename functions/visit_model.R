@@ -5,14 +5,10 @@
 # Create objects for simulation using setup_all(), returning list of 2 where
 # 1 contains object names and 2 contains the objects. Extract from list into
 # workspace using assign()
-# AMY: arr_scenarios not used outside function
 setup_visit <- setup_all("visit")
 for (i in seq_along(setup_visit[[1]])){
   assign(setup_visit[[1]][i], setup_visit[[2]][[i]])
 }
-
-# Create vector with each scenario name (dput is just to print to screen)
-visit_pathway_vector <- dput(colnames(arr_rates_visit %>% select(-date)))
 
 # Initial service rate and end service rate, and their standard deviation
 # Create lists with sd_isr or sd_esr repeated for number of visit scenarios
@@ -33,7 +29,7 @@ visits_based_output <- NULL
 # Model -----------------------------------------------------------------------
 
 # Repeat for each scenario in visit-based pathways
-for (z in seq_along(visit_pathway_vector)) {
+for (z in seq_along(pathway_vector_visit)) {
   # detectCores() but -1 as want to make you you have one left to do other
   # stuff on. Cores are processors that can work on tasks. Then makecluster()
   # to set the amount of clusters you want your code to run on
@@ -125,7 +121,7 @@ for (z in seq_along(visit_pathway_vector)) {
       if (t > warmup) {
         output[t - warmup, ] <- c(
           RUNX = run,
-          node = visit_pathway_vector[z],
+          node = pathway_vector_visit[z],
           day = t,
           q_length = length(in_q),
           n_slots_used = n_slots[z] - (resources[t, ]),
@@ -142,7 +138,7 @@ for (z in seq_along(visit_pathway_vector)) {
             df <- data.frame(
               RUNX = run,
               day_ = t,
-              scen_ = visit_pathway_vector[z],
+              scen_ = pathway_vector_visit[z],
               start_service = patients$start_service[remove],
               waittime = patients[remove, 6])
             waittime_vec <- rbind(waittime_vec, df) #keeping waiting time

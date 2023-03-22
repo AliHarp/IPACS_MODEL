@@ -86,11 +86,15 @@ setup_all <- function(model_type){
     arrange(date) %>%
     as.data.frame()
   
+  # Create vector with each scenario name (dput is just to print to screen)
+  pathway_vector <- dput(colnames(arr_rates %>% select(-date)))
+  
   # Create list of names objects to return, use mget() to get the objects,
   # and create list with names specific to the model type
-  return_names <- c("scenarios", "arr_scenarios", "costs",
+  return_names <- c("scenarios", "costs",
                     "init_occ", "init_niq", "srv_dist", "cap", "loss",
-                    "srv_params", "mean_los", "sd_los", "arr_rates")
+                    "srv_params", "mean_los", "sd_los",
+                    "arr_rates", "pathway_vector")
   return_objects <- mget(return_names)
   return_new_names <- paste0(return_names, "_", model_type)
   return(list(return_new_names, return_objects))
