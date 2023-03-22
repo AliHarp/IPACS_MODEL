@@ -14,6 +14,13 @@ for (x in input_list){
                                   sheet = x[2]))
 }
 
+# Create mu, sigma and los_params columns in Python rather than excel formula
+# after filter dataframe (to remove those columns if already exist)
+losA[, -which(names(losA) %in% c("mu", "sigma", "los_params"))]
+losA["mu"] <- log(losA["median"])
+losA["sigma"] <- sqrt(2*(log(losA["mean_los"])-losA["mu"]))
+losA["los_params"] <- with(losA, paste(mu, sigma, sep=" , "))
+
 # Set run time as the number of unique dates in arrivals (used in visit-based)
 sim_length <- as.integer(length(unique(arrivals_all$date)))
 
