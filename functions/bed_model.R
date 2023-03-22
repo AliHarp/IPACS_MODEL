@@ -46,6 +46,8 @@ arr_rates <- arr_scenarios_bed %>%
 bed_pathway_vector <- dput(colnames(arr_rates %>% select(-date)))
 
 # Functions for sampling from LOS distribution
+# AMY: Some not used (in clusterEXPORT but not scripts - so either change
+# to be used in function or delete)
 rtdist <- function(n, params) {
   do.call(paste0("r", node_srv_dist), c(list(n = n), params))
 }
@@ -126,7 +128,6 @@ simfn <- function(runs) {
   tx <- 0
 
   # Create res
-  # AMY: What is this?
   # AMY: Above is all for 99 days, not 100 days. Does visits based have day 0?
   # I previously thought this might be fine
   res <- data.frame(time = 0:(dur),
@@ -148,7 +149,7 @@ simfn <- function(runs) {
     ind <- ind1[which.min(cal$time[ind1])]
 
     # Keep record of niq, occ and tx
-    # AMY: WHY?
+    # AMY: Why?
     niq_old <- niq
     occ_old <- occ
     tx_old <- tx
@@ -170,13 +171,21 @@ simfn <- function(runs) {
       # If number occupying pathway is less than capacity...
       if (occ < node_cap) {
         # Admit patient
+        # AMY: I think tx_day 1 goes to res time 0 rather than 1?
         res$arr_admit[tx_day] <- res$arr_admit[tx_day] + 1
+
+        # Add time when admitted to cal
         cal <- rbind(cal,  data.frame(id = cal$id[ind],
                                       time = tx,
                                       event = "startsrv",
                                       wait = NA))
+
+        # Sample from rlnorm to get length of stay
+        # AMY: Change to use function for this
         los <- do.call(paste0("r", node_srv_dist),
                        c(list(n = 1), node_srv_params))
+
+        # Add time left service to cal
         cal <- rbind(cal, data.frame(id = cal$id[ind],
                                      time = tx + los,
                                      event = "endsrv",
@@ -244,12 +253,18 @@ simfn <- function(runs) {
     res$mean_wait[tx_day] <- max(0, -mean(cal$wait, na.rm = TRUE))
   }
 
+  # res has columns: (1) time, (2) occ, (3) niq, (4) arr_admit,
+  # (5) arr_no_admit, (6) mean_wait, (7) pathway and scenario number,
+  # (8) run number
   res <- res %>%
     mutate(niq = ifelse(time == 1 & is.na(niq), 0, niq)) %>%
     mutate(occ = ifelse(time == 1 & is.na(occ), 0, occ)) %>%
     fill(niq) %>%
     fill(occ) %>%
     mutate(node = node, run = runs)
+
+  # res_arr_neg has columns: (1) pathway and scenario number, (2) run number,
+  # (3) arr_neg - proportion of days where arrivals < 0)
   res_arr_neg <- data.frame(node = node,
                             run = runs,
                             arr_neg = arr_neg)
@@ -260,7 +275,8 @@ simfn <- function(runs) {
 # Record time taken
 start_time_bed <- Sys.time()
 
-# For each pathway main loop of results
+# For each pathway/location/scenario, run the simulation (nruns times)
+# Saves results as sim_res, a list
 sim_res <- lapply(1:(ncol(arr_rates) - 1), function(node) {
   # For that pathway and simulation, assign parameters (initial occupancy,
   # initial queue, arrival rates, LOS distribution parameters, capacity, loss
@@ -292,29 +308,33 @@ sim_res <- lapply(1:(ncol(arr_rates) - 1), function(node) {
   tres <- parLapply(cl, 1:nruns, simfn)
   stopCluster(cl)
 
+  # Bind together results from each run into one dataframe
+  # For tres1 (res) and tres2 (res_arr_neg)
   tres1 <- do.call("bind_rows",
                    lapply(seq_along(tres), function(x) tres[[x]][[1]]))
-  # tres2 has cols with node (i.e. (1) pathway and scenario number,
-  # (2) run number, (3) arr_neg)
-
   tres2 <- do.call("bind_rows",
                    lapply(seq_along(tres), function(x) tres[[x]][[2]]))
 
   return(list(tres1, tres2))
 })
 
+# Bind together results from each pathway and scenario
+# For res1 (tres1/res) and res2 (tres2/res_arr_neg)
 res1 <- do.call("bind_rows", lapply(seq_along(sim_res),
                                     function(x) sim_res[[x]][[1]]))
 res2 <- do.call("bind_rows", lapply(seq_along(sim_res),
                                     function(x) sim_res[[x]][[2]]))
 
+# Replace NA mean wait with 0
 res1$mean_wait[is.nan(res1$mean_wait)] <- 0
 
 # Print processing time
 print(difftime(Sys.time(), start_time_bed), quote = FALSE)
 
-# Find average results for report ----------------------------------------------
 
+# Find average results for report ----------------------------------------------
+# Pivot dataframe so instead of columns for arr_admit, arr_no_admit, mean_wait,
+# niq and occ, these are now rows (so from wide to long format)
 res1q <- res1 %>%
   pivot_longer(
     cols = c(occ, niq, arr_admit, arr_no_admit, mean_wait),
@@ -323,43 +343,60 @@ res1q <- res1 %>%
   group_by(node, time, measure) %>%
   summarise(mean = mean(value, na.rm = TRUE))
 
+# Add column to res1q with capacity, based on node number referencing to cap
 cap_size <- as.numeric()
 for (x in seq_along(res1q$node)) {
   cap_size[x] <- cap[[res1q$node[x]]]
 }
-res1q <- cbind(res1q, cap_size)
-colnames(res1q)[5] <- "capacity"
+res1q["capacity"] <- cap_size
 
-beds_required <- lapply(seq_along(bed_pathway_vector), function(x) {
-  res1q$mean[(res1q$node == x &
-                res1q$measure == "occ" &
-                res1q$time < nrow(arr_rates))]
+# For length of bed_pathway_vector (which contains each location, pathway and
+# scenario combination)....
+# Go to each node number, and find mean of given metric, based on results from
+# time 0 to 180 (not for time 181)
+find_mean <- function(measure) {
+  output_object <- lapply(seq_along(bed_pathway_vector), function(x) {
+    res1q$mean[(res1q$node == x &
+                  res1q$measure == measure &
+                  res1q$time < nrow(arr_rates))]
   })
+  return(output_object)
+}
+beds_required <- find_mean("occ")
+niq_result <- find_mean("niq")
+wait_result <- find_mean("mean_wait")
 
-niq_result <- lapply(seq_along(bed_pathway_vector), function(x) {
-  res1q$mean[(res1q$node == x &
-                res1q$measure == "niq" &
-                res1q$time < nrow(arr_rates))]
-  })
+# Create cost columns ---------------------------------------------------------
+# Seperate P2 and P3 occupancy (beds_req)
+p2_beds_req <- beds_required[grep("P2", bed_pathway_vector)]
+p3_beds_req <- beds_required[grep("P3", bed_pathway_vector)]
 
-wait_result <- lapply(seq_along(bed_pathway_vector), function(x) {
-  res1q$mean[(res1q$node == x &
-                res1q$measure == "mean_wait" &
-                res1q$time < nrow(arr_rates))]
-  })
+# Multiply occupancy by the costs provided by costs_bed
+# This currently assumes that every location has same costs
+p2_beds_cost <- lapply(p2_beds_req, "*", costs_bed %>%
+                         filter(node == "P2_B") %>%
+                         select(community_cost) %>%
+                         as.double())
+p3_beds_cost <- lapply(p3_beds_req, "*", costs_bed %>%
+                         filter(node == "P3_B") %>%
+                         select(community_cost) %>%
+                         as.double())
+niq_cost <- lapply(niq_result, "*", costs_bed %>%
+                     filter(node == "P2_B") %>%
+                     select(acute_dtoc) %>%
+                     as.double())
 
-# Create cost columns
-p2_beds_req <- beds_required[1:36]
-p3_beds_req <- beds_required[37:72]
-p2_beds_cost <- lapply(p2_beds_req, "*", costs_bed[[2]][1])
-p3_beds_cost <- lapply(p3_beds_req, "*", costs_bed[[2]][2])
-niq_cost <- lapply(niq_result, "*", costs_bed[[3]][1])
+# Combine P2 and P3 bed costs in a list
 beds_cost_comm <- c(p2_beds_cost, p3_beds_cost)
+
+# Add together NIQ costs and P2 and P3 bed costs
 beds_cost <- mapply("+", niq_cost, beds_cost_comm, SIMPLIFY = FALSE)
 
-# Create output dataframe
+# Save results in an output dataframe ------------------------------------------
+# Create output dataframe with mean result for each measure for each
+# pathway/scenario/location, with rows for each day (1-181)
 meansoutput <- cbind(
-    data.frame(arr_rates$date[seq_along(arr_rates$date)]),
+    data.frame(arr_rates$date),
     data.frame(round(data.frame(beds_required))),
     data.frame(round(data.frame(niq_result))),
     data.frame(round(data.frame(wait_result))),
