@@ -17,6 +17,7 @@ start_time_bed <- Sys.time()
 # For each pathway/location/scenario, run the simulation (nruns times)
 # Saves results as sim_res, a list
 sim_res <- lapply(1:(ncol(arr_rates_bed) - 1), function(node) {
+  # Set parameters -------------------------------------------------------------
   # For that pathway and simulation, assign parameters (initial occupancy,
   # initial queue, arrival rates, LOS distribution parameters, capacity, loss
   # (balking condition))
@@ -28,6 +29,7 @@ sim_res <- lapply(1:(ncol(arr_rates_bed) - 1), function(node) {
   node_cap <- cap_bed[[node]]
   node_loss <- loss_bed[[node]]
 
+  # Run using parallel processing ----------------------------------------------
   # Intialisation for parallel processing
   # detectCores() but -1 as want to make you you have one left to do other
   # stuff on, then makecluster() to set the amount of clusters you want your
@@ -47,6 +49,7 @@ sim_res <- lapply(1:(ncol(arr_rates_bed) - 1), function(node) {
   tres <- parLapply(cl, 1:nruns, simfn)
   stopCluster(cl)
 
+  # Bind together results -----------------------------------------------------
   # Bind together results from each run into one dataframe
   # For tres1 (res) and tres2 (res_arr_neg)
   tres1 <- do.call("bind_rows",
@@ -105,47 +108,31 @@ beds_required <- find_mean("occ")
 niq_result <- find_mean("niq")
 wait_result <- find_mean("mean_wait")
 
-# Create cost columns ---------------------------------------------------------
-# Seperate P2 and P3 occupancy (beds_req)
-p2_beds_req <- beds_required[grep("P2", pathway_vector_bed)]
-p3_beds_req <- beds_required[grep("P3", pathway_vector_bed)]
 
-# Multiply occupancy by the costs provided by costs_bed
-# This currently assumes that every location has same costs
-p2_beds_cost <- lapply(p2_beds_req, "*", costs_bed %>%
-                         filter(node == "P2_B") %>%
-                         select(community_cost) %>%
-                         as.double())
-p3_beds_cost <- lapply(p3_beds_req, "*", costs_bed %>%
-                         filter(node == "P3_B") %>%
-                         select(community_cost) %>%
-                         as.double())
-niq_cost <- lapply(niq_result, "*", costs_bed %>%
-                     filter(node == "P2_B") %>%
-                     select(acute_dtoc) %>%
-                     as.double())
-
-# Combine P2 and P3 bed costs in a list
-beds_cost_comm <- c(p2_beds_cost, p3_beds_cost)
+# Create cost column ----------------------------------------------------------
+# Calculate costs using find_costs()
+p2_beds_cost <- find_costs(oc = beds_required[grep("P2", pathway_vector_bed)],
+                           node = "P2_B", cost_type = "community_cost")
+p3_beds_cost <- find_costs(oc = beds_required[grep("P3", pathway_vector_bed)],
+                           node = "P3_B", cost_type="community_cost")
+niq_cost <- find_costs(oc = niq_result, node="P2_B", cost_type="acute_dtoc")
 
 # Add together NIQ costs and P2 and P3 bed costs
-beds_cost <- mapply("+", niq_cost, beds_cost_comm, SIMPLIFY = FALSE)
+beds_cost <- mapply(
+  "+", niq_cost, c(p2_beds_cost, p3_beds_cost), SIMPLIFY = FALSE)
+
 
 # Save results in an output dataframe ------------------------------------------
 # Create output dataframe with mean result for each measure for each
 # pathway/scenario/location, with rows for each day (1-181)
 meansoutput <- cbind(
-    data.frame(arr_rates_bed$date),
-    data.frame(round(data.frame(beds_required))),
-    data.frame(round(data.frame(niq_result))),
-    data.frame(round(data.frame(wait_result))),
-    data.frame(round(data.frame(beds_cost)))
+  data.frame(arr_rates_bed$date),
+  sapply(c(beds_required, niq_result, wait_result, beds_cost),
+         function(x) data.frame(round(data.frame(x))))
 )
-colnames <- cbind(c("date",
-                    (paste0(pathway_vector_bed, "__occ")),
-                    (paste0(pathway_vector_bed, "__niq")),
-                    (paste0(pathway_vector_bed, "__wait")),
-                    (paste0(pathway_vector_bed, "__cost"))))
+colnames <- cbind(
+  c("date", sapply(c("occ", "niq", "wait", "cost"),
+                   function(x) paste0(pathway_vector_bed, "__", x))))
 colnames(meansoutput) <- colnames
 
 # Save to excel, with filename based on the input file

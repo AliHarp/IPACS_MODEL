@@ -5,7 +5,7 @@ rtdist <- function(n, params) {
   do.call(paste0("r", node_srv_dist), c(list(n = n), params))
 }
 
-# Simulation function ----------------------------------------------------------
+# Simulation function
 simfn <- function(runs) {
   # Set seed to number of current run (from 1:nruns)
   set.seed(runs)
@@ -214,4 +214,16 @@ simfn <- function(runs) {
                             run = runs,
                             arr_neg = arr_neg)
   return(list(res, res_arr_neg))
+}
+
+# Multiply occupancy by the costs provided by costs_bed
+# This currently assumes that every location has same costs
+find_costs <- function(oc, node, cost_type){
+  # Inputs:
+  # oc = list with occupancy
+  # node = chosen pathway and location
+  # cost_type = community_cost or acute_dtoc
+  costs <- lapply(oc, "*",
+                  as.double(costs_bed[costs_bed["node"] == node, cost_type]))
+  return(costs)
 }
