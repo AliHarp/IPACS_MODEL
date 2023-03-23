@@ -8,6 +8,7 @@ date: '`r format(Sys.time(), "%d %B, %Y")`'
 
 ```{r setup-, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
+library(here)
 library(knitr)
 library(flextable)
 ```
@@ -15,6 +16,7 @@ library(flextable)
 ```{r import_res}
 # Import outputs from bed-based and visit-based scenarios
 # Use "here" package to create relative file path that works on all systems
+# AMY: Depends on input_filename from ipacs_main_script.R
 output_suffix <- paste0("_output_using_",
                         gsub(".xlsx", "", input_filename), ".csv")
 bed_data <- read.csv(here("outputs", paste0("bed", output_suffix)))
