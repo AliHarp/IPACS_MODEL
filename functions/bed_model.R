@@ -53,19 +53,14 @@ sim_res <- lapply(1:(ncol(arr_rates_bed) - 1), function(node) {
   # Bind together results from each run into one dataframe
   # For tres1 (res) and tres2 (res_arr_neg)
   tres1 <- do.call("bind_rows",
-                   lapply(seq_along(tres), function(x) tres[[x]][[1]]))
-  tres2 <- do.call("bind_rows",
-                   lapply(seq_along(tres), function(x) tres[[x]][[2]]))
+                   lapply(seq_along(tres), function(x) tres[[x]]))
 
-  return(list(tres1, tres2))
+  return(tres1)
 })
 
 # Bind together results from each pathway and scenario
-# For res1 (tres1/res) and res2 (tres2/res_arr_neg)
 res1 <- do.call("bind_rows", lapply(seq_along(sim_res),
-                                    function(x) sim_res[[x]][[1]]))
-res2 <- do.call("bind_rows", lapply(seq_along(sim_res),
-                                    function(x) sim_res[[x]][[2]]))
+                                    function(x) sim_res[[x]]))
 
 # Replace NA mean wait with 0
 res1$mean_wait[is.nan(res1$mean_wait)] <- 0
