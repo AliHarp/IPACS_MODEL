@@ -1,4 +1,4 @@
-# Functions for visit
+# Functions for visit-based model ----------------------------------------------
 
 dis_los <- function() {
   # Samples from length of stay (LOS) distribution
