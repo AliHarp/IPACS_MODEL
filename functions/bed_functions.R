@@ -39,16 +39,17 @@ simfn <- function(runs) {
   }
   
   # Select column that is not date (can't use name as different for each
-  # scenario and location
+  # scenario and location)
   arr_col_ind <- -which(names(node_arr_rates) %in% c("date"))
   
   # For each date, get number of arrivals by sampling from poisson distribution,
-  # and round to nearest integer
+  # and round to nearest integer, returning array (e.g. if 181 days, then list
+  # of 181 numbers, each of which is the number of arrivals for that day)
   day_arr_times <- sapply(seq_len(nrow(node_arr_rates)), function(x) {
     round(rpois(n = 1, lambda = node_arr_rates[x, arr_col_ind]))
   })
   
-  # Find proportion of days where arrivals < 0
+  # Find proportion of days where arrivals < 0 (i.e. negative arrivals)
   arr_neg <- sum(day_arr_times < 0) / length(day_arr_times)
   
   # If < 0, reset to 0
@@ -226,4 +227,18 @@ find_costs <- function(oc, node, cost_type){
   costs <- lapply(oc, "*",
                   as.double(costs_bed[costs_bed["node"] == node, cost_type]))
   return(costs)
+}
+
+# Find mean for given measure for each node for each day
+# For length of pathway_vector_bed (which contains each location, pathway and
+# scenario combination)....
+# Go to each node number, and find mean of given metric, based on results from
+# time 0 to 180 (not for time 181)
+find_mean <- function(measure) {
+  output_object <- lapply(seq_along(pathway_vector_bed), function(x) {
+    res1q$mean[(res1q$node == x &
+                  res1q$measure == measure &
+                  res1q$time < nrow(arr_rates_bed))]
+  })
+  return(output_object)
 }

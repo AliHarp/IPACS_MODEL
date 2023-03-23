@@ -92,18 +92,7 @@ for (x in seq_along(res1q$node)) {
 }
 res1q["capacity"] <- cap_size
 
-# For length of pathway_vector_bed (which contains each location, pathway and
-# scenario combination)....
-# Go to each node number, and find mean of given metric, based on results from
-# time 0 to 180 (not for time 181)
-find_mean <- function(measure) {
-  output_object <- lapply(seq_along(pathway_vector_bed), function(x) {
-    res1q$mean[(res1q$node == x &
-                  res1q$measure == measure &
-                  res1q$time < nrow(arr_rates_bed))]
-  })
-  return(output_object)
-}
+# Find mean for given measure for each node for each day
 beds_required <- find_mean("occ")
 niq_result <- find_mean("niq")
 wait_result <- find_mean("mean_wait")
