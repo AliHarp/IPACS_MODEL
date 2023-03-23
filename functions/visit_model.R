@@ -5,6 +5,7 @@
 # Create objects for simulation using setup_all(), returning list of 2 where
 # 1 contains object names and 2 contains the objects. Extract from list into
 # workspace using assign()
+# AMY: sd_los not used
 setup_visit <- setup_all("visit")
 for (i in seq_along(setup_visit[[1]])){
   assign(setup_visit[[1]][i], setup_visit[[2]][[i]])
