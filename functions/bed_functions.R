@@ -49,10 +49,7 @@ simfn <- function(runs) {
     round(rpois(n = 1, lambda = node_arr_rates[x, arr_col_ind]))
   })
   
-  # Find proportion of days where arrivals < 0 (i.e. negative arrivals)
-  arr_neg <- sum(day_arr_times < 0) / length(day_arr_times)
-  
-  # If < 0, reset to 0
+  # If any day with negative arrivals, reset to 0
   day_arr_times[which(day_arr_times < 0)] <- 0
   
   # For each day of simulation, sample values between 0 and 1 from uniform
@@ -209,12 +206,7 @@ simfn <- function(runs) {
     fill(occ) %>%
     mutate(node = node, run = runs)
   
-  # res_arr_neg has columns: (1) pathway and scenario number, (2) run number,
-  # (3) arr_neg - proportion of days where arrivals < 0)
-  res_arr_neg <- data.frame(node = node,
-                            run = runs,
-                            arr_neg = arr_neg)
-  return(list(res, res_arr_neg))
+  return(res)
 }
 
 # Multiply occupancy by the costs provided by costs_bed
