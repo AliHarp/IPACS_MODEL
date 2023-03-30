@@ -1,5 +1,5 @@
 # IPACS
-Model for IPACS (Improving Patient flow between Acute, Community and Social care) project. Model used for D2A resource planning. This repository contains the models, with simplification and bug fixes from Amy Heather.  
+Model for IPACS (Improving Patient flow between Acute, Community and Social care) project. Model used for D2A resource planning. This repository contains the models, with re-coding and bug fixes from Amy Heather.  
 
 ## Bug fixes  
 Most modification has been about simplification, but there have been some bug fixes that have modified the results of the simulation. These are noted below:  
