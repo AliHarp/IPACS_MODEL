@@ -25,6 +25,7 @@ n_slots  <- cap_visit * mean(c(isr, end_sr))
 
 # Create object to store outputs from each scenario
 visits_based_output <- NULL
+visits_based_output_q <- NULL
 
 
 # Model -----------------------------------------------------------------------
@@ -193,8 +194,10 @@ for (z in seq_along(pathway_vector_visit)) {
     summary[k, "in_sys"] <- round(mean(out$in_sys[r_out]), 2)
   }
 
+  # Normal outputs ------------------------------------------------------------
   # Groups by day (e.g. day 1) and node (e.g. P1_B_BCap_Blos_Barr)
-  # Finds average results for each day
+  # Finds average results for each day (for niq + occ, plus other measures
+  # if needed)
   ts_output <- out %>%
     group_by(day, node) %>%
     summarise(
@@ -225,6 +228,61 @@ for (z in seq_along(pathway_vector_visit)) {
   # Combine ts_output and ts_waits, and then save the scenario results
   ts_output <- cbind(ts_output, ts_waits)
   visits_based_output <- rbind(visits_based_output, ts_output)
+
+  # Stochastic outputs --------------------------------------------------------
+  # Quantiles for niq, occ and wait for optional stochastic report
+  q_niq <- out %>%
+    group_by(day, node) %>%
+    summarise(
+      q05 = quantile(q_length, 0.05), q5 = quantile(q_length, 0.5),
+      q95 = quantile(q_length, 0.95), mean = mean(q_length),
+      q10 = quantile(q_length, 0.1), q25 = quantile(q_length, 0.25),
+      q75 = quantile(q_length, 0.75), q90 = quantile(q_length, 0.9),
+      q025 = quantile(q_length, 0.025), q975 = quantile(q_length, 0.975)
+    ) %>%
+    ungroup()
+  q_niq$measure <- rep("niq", nrow(q_niq))
+
+  q_occ <- out %>%
+    group_by(day, node) %>%
+    summarise(
+      q05 = quantile(patients_in_service, 0.05),
+      q5 = quantile(patients_in_service, 0.5),
+      q95 = quantile(patients_in_service, 0.95),
+      mean = mean(patients_in_service),
+      q10 = quantile(patients_in_service, 0.1),
+      q25 = quantile(patients_in_service, 0.25),
+      q75 = quantile(patients_in_service, 0.75),
+      q90 = quantile(patients_in_service, 0.9),
+      q025 = quantile(patients_in_service, 0.025),
+      q975 = quantile(patients_in_service, 0.975)
+    ) %>%
+    ungroup()
+  q_occ$measure <- rep("occ", nrow(q_occ))
+
+  q_waits <- wait %>%
+    group_by(day_, scen_) %>%
+    summarise(
+      q05 = quantile(waittime, 0.05), q5 = quantile(waittime, 0.5),
+      q95 = quantile(waittime, 0.95), mean = mean(waittime),
+      q10 = quantile(waittime, 0.1), q25 = quantile(waittime, 0.25),
+      q75 = quantile(waittime, 0.75), q90 = quantile(waittime, 0.9),
+      q025 = quantile(waittime, 0.025), q975 = quantile(waittime, 0.975)
+    ) %>%
+    ungroup() %>%
+    rename_at(1, ~ "day") %>%
+    rename_at(2, ~ "node")
+  q_waits$measure <- rep("waits", nrow(q_waits))
+
+  # For each scenario for optional stochastic report
+  ts_output_q <- rbind(q_niq, q_occ, q_waits)
+  ts_output_q <- cbind(
+    ts_output_q,
+    data.frame(arr_rates_visit$date[seq_along(arr_rates_visit$date)])) %>%
+    rename_at(14, ~"date")
+
+  # Rowbind each scenario for optional stochastic report
+  visits_based_output_q <- rbind(visits_based_output_q, ts_output_q)
 }
 
 
@@ -248,3 +306,11 @@ output_filename <- paste0("outputs/visit_output_using_",
                           gsub(".xlsx", "", input_filename),
                           ".csv")
 write.csv(means_output_v, output_filename, row.names = FALSE)
+
+# Correct date formatting, and save the quantiles to csv for optional
+# stochastic report. Saved in long format for plotting
+visits_based_output_q$date <- as.Date(visits_based_output_q$date)
+stoch_filename <- paste0("outputs/stochastic_visit_output_using_",
+                         gsub(".xlsx", "", input_filename),
+                         ".csv")
+write.csv(visits_based_output_q, stoch_filename, row.names = FALSE)
