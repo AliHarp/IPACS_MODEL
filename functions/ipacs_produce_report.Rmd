@@ -205,22 +205,27 @@ create_plot <- function(sim_res, path_loc) {
 
 ## Scenarios
 ```{r scenarios}
-p1_bristol_l = create_plot_df(visit_data, "P1_B")
-scenario_table<- cbind(c(1:length(levels(factor(p1_bristol_l$scenario)))),levels(factor(p1_bristol_l$scenario)))
-new_table<-str_split(levels(factor(p1_bristol_l$scenario)),"_",simplify = TRUE)
-scenario_table<-cbind(c(1:length(levels(factor(p1_bristol_l$scenario)))),new_table)
+# Create results table for a location, to use as basis for scenario
+p1_bristol_l <- create_plot_df(visit_data, "P1_B")
 
-scenario_table<-gsub('Cap','',scenario_table)
-scenario_table<-gsub('los','',scenario_table)
-scenario_table<-gsub('Arr','',scenario_table)
+# Find distinct scenarios, save into table along with column of numbers
+scenario_array <- levels(factor(p1_bristol_l$scenario))
+new_table <- str_split(scenario_array, "_", simplify = TRUE)
+scenario_table <- cbind(c(seq_along(scenario_array)), new_table)
 
-#replace(scenario_table,"Baseline","Specification")
-colnames(scenario_table)<-c("Scenario #","Capacity","Length of Stay","Arrival")
-scenario_table<-as.data.frame(scenario_table)
-scenario_table[scenario_table == 'B'] <- 'Baseline'#p1_bristol_l <- bind_rows(P1_B_previous, p1_bristol_l)
-scenario_table[scenario_table == 'S1'] <- 'Target'
-scenario_table[scenario_table == 'S2'] <- 'Interim'
-tb<-flextable(scenario_table)
+# Remove "cap" etc. so just left with B, S1 or S2, then rename columns
+scenario_table <- gsub("Cap|los|Arr", "", scenario_table)
+colnames(scenario_table) <- c("Scenario #", "Capacity",
+                              "Length of Stay", "Arrival")
+
+# Convert to dataframe, and replace "B", "S1" and "S2" labels
+scenario_table <- as.data.frame(scenario_table)
+scenario_table[scenario_table == "B"] <- "Baseline"
+scenario_table[scenario_table == "S1"] <- "Target"
+scenario_table[scenario_table == "S2"] <- "Interim"
+
+# Convert to flextable and autofit to set appropriate column widths
+tb <- flextable(scenario_table)
 tb <- autofit(tb)
 tb
 ```
