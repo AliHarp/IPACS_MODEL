@@ -25,7 +25,7 @@ lint(here("functions", "visit_functions.R"))
 lint(here("functions", "visit_model.R"))
 lint(here("functions", "bed_functions.R"))
 lint(here("functions", "bed_model.R"))
-lint("ipacs_produce_report.Rmd")
+lint(here("functions", "ipacs_produce_report.Rmd"))
 
 # Testing ---------------------------------------------------------------------
 # Name of file with model parameters (should be stored in model_inputs folder)
