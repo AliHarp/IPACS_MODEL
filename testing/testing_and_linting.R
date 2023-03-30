@@ -13,7 +13,9 @@ visit_new <- read.csv(here("outputs", "visit_output_using_IPACS_20230214_fix.csv
 visit_test <- read.csv(here("testing", "visit_testing_using_IPACS_20230214_fix.csv"))
 diffdf::diffdf(visit_new, visit_test)
 
-stoch_visit_new <- read.csv(here("outputs", "stochastic_visit_output_using_IPACS_20230214_fix.csv"))
+# Looking for differences in stochastic output of visit model
+stoch_visit_new <- read.csv(here(
+  "stochastic_outputs", "stochastic_visit_output_using_IPACS_20230214_fix.csv"))
 stoch_visit_test <- read.csv(here("testing", "stochastic_visit_testing_using_IPACS_20230214_fix.csv"))
 diffdf::diffdf(stoch_visit_new, stoch_visit_test)
 

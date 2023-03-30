@@ -310,7 +310,7 @@ write.csv(means_output_v, output_filename, row.names = FALSE)
 # Correct date formatting, and save the quantiles to csv for optional
 # stochastic report. Saved in long format for plotting
 visits_based_output_q$date <- as.Date(visits_based_output_q$date)
-stoch_filename <- paste0("outputs/stochastic_visit_output_using_",
+stoch_filename <- paste0("stochastic_outputs/stochastic_visit_output_using_",
                          gsub(".xlsx", "", input_filename),
                          ".csv")
 write.csv(visits_based_output_q, stoch_filename, row.names = FALSE)
