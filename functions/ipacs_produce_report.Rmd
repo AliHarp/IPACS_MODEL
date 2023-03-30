@@ -85,7 +85,9 @@ arr_plots(barr)
 sarr <- arrivals_all %>% filter(grepl("S1Arr", name))
 arr_plots(sarr)
 ```
+
 \newpage
+
 ```{r table}
 # Create dataframe with one row per pathway and columns containing the values
 # for capacity and mean length of stay at baseline and for each scenario
@@ -115,7 +117,6 @@ info_table_ft <- autofit(info_table_ft)
 info_table_ft
 ```
 
-\newpage
 ```{r select-data,warning=FALSE, eval=TRUE, echo=FALSE}
 # Process data so it can be used for plotting
 
@@ -194,13 +195,37 @@ plots <- function(pathway_data, path_loc) {
 }
 
 # Function to create plot df and then plot
-# AMY: Could combine those two functions rather than have seperate to run them?
-# But might get confusing having all in one?
 create_plot <- function(sim_res, path_loc) {
   plot_df <- create_plot_df(sim_res, path_loc)
   plots(plot_df, path_loc)
 }
 ```
+
+\newpage  
+
+## Scenarios
+```{r scenarios}
+p1_bristol_l = create_plot_df(visit_data, "P1_B")
+scenario_table<- cbind(c(1:length(levels(factor(p1_bristol_l$scenario)))),levels(factor(p1_bristol_l$scenario)))
+new_table<-str_split(levels(factor(p1_bristol_l$scenario)),"_",simplify = TRUE)
+scenario_table<-cbind(c(1:length(levels(factor(p1_bristol_l$scenario)))),new_table)
+
+scenario_table<-gsub('Cap','',scenario_table)
+scenario_table<-gsub('los','',scenario_table)
+scenario_table<-gsub('Arr','',scenario_table)
+
+#replace(scenario_table,"Baseline","Specification")
+colnames(scenario_table)<-c("Scenario #","Capacity","Length of Stay","Arrival")
+scenario_table<-as.data.frame(scenario_table)
+scenario_table[scenario_table == 'B'] <- 'Baseline'#p1_bristol_l <- bind_rows(P1_B_previous, p1_bristol_l)
+scenario_table[scenario_table == 'S1'] <- 'Target'
+scenario_table[scenario_table == 'S2'] <- 'Interim'
+tb<-flextable(scenario_table)
+tb <- autofit(tb)
+tb
+```
+
+\newpage
 
 ## P1 Bristol
 ```{r P1-B, warning=FALSE, eval=TRUE, echo=FALSE, fig.height=12, fig.width=10}
