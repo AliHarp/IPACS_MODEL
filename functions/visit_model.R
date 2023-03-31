@@ -5,7 +5,6 @@
 # Create objects for simulation using setup_all(), returning list of 2 where
 # 1 contains object names and 2 contains the objects. Extract from list into
 # workspace using assign()
-# AMY: sd_los not used
 setup_visit <- setup_all("visit")
 for (i in seq_along(setup_visit[[1]])){
   assign(setup_visit[[1]][i], setup_visit[[2]][[i]])
@@ -185,13 +184,11 @@ for (z in seq_along(pathway_vector_visit)) {
     # Extract results for that run
     r_out <- which(out[, "RUNX"] == k)
     k_wait <- which(wait[, "RUNX"] == k)
-    # Add results for that run
-    # AMY: repetitive round(mean())
-    summary[k, "mean_wait"] <- round(mean(wait$waittime[k_wait]), 2)
-    summary[k, "q_length"] <- round(mean(out$q_length[r_out]), 2)
-    summary[k, "res_used"] <- round(mean(out$res_used[r_out]), 2)
-    summary[k, "res_idle"] <- round(mean(out$res_idle[r_out]), 2)
-    summary[k, "in_sys"] <- round(mean(out$in_sys[r_out]), 2)
+    # Add results for that run (with k_wait or r_out extracting the rows)
+    summary[k, "mean_wait"] <- round(mean(wait[k_wait, "waittime"]), 2)
+    for (x in c("q_length", "res_used", "res_idle", "in_sys")){
+      summary[k, x] <- round(mean(out[r_out, x]), 2)
+    }
   }
 
   # Normal outputs ------------------------------------------------------------
