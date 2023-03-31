@@ -14,12 +14,47 @@ for (x in input_list){
                                   sheet = x[2]))
 }
 
-# Create mu, sigma and los_params columns in Python rather than excel formula
-# after filter dataframe (to remove those columns if already exist)
+# Create mu, sigma and los_params columns
+# Filter dataframe (to remove those columns if already exist)
 losA[, -which(names(losA) %in% c("mu", "sigma", "los_params"))]
-losA["mu"] <- log(losA["median"])
-losA["sigma"] <- sqrt(2*(log(losA["mean_los"])-losA["mu"]))
-losA["los_params"] <- with(losA, paste(mu, sigma, sep=" , "))
+if (est_method == 1) {
+  # This was the method being used within the excel spreadsheet
+  # And hence, outputs used for testing_and_linting are from this method
+  losA["mu"] <- log(losA["median"])
+  losA["sigma"] <- sqrt(2*(log(losA["mean_los"])-losA["mu"]))
+  losA["los_params"] <- with(losA, paste(mu, sigma, sep=" , "))
+} else if (est_method == 2) {
+  # This was method sent from Alison
+  gen_mu <- function(mean, stdv) {
+    phi <- (stdv ^ 2 + mean ^ 2) ^ 0.5
+    mu <- log(mean ^ 2 / phi)
+    return (mu)
+  }
+  gen_sigma <- function(mean, stdv) {
+    phi <- (stdv ^ 2 + mean ^ 2) ^ 0.5
+    mu <- log(mean ^ 2 / phi)
+    sigma <- (log(phi ^ 2 / mean ^ 2)) ^ 0.5
+    return (sigma)
+  }
+  losA$mu <- lapply(losA$mean_los, function(x) gen_mu(x, sd_los))
+  losA$sigma <- lapply(losA$mean_los, function(x) gen_sigma(x, sd_los))
+  losA$los_params <- with(losA, paste(mu, sigma, sep=" , "))
+  # This is the same as the commented method below
+  # Source: https://msalganik.wordpress.com/2017/01/21/making-sense-of-the-rlnorm-function-in-r/comment-page-1/
+  # gen_mu <- function(mean, stdv) {
+  #   mu <- log(mean ^ 2 / sqrt(stdv ^ 2 + mean ^ 2))
+  #   return (mu)
+  # }
+  # gen_sigma <- function(mean, stdv) {
+  #   sigma <- sqrt(log(1 + (stdv ^ 2 / mean ^ 2)))
+  #   return (sigma)
+  # }
+  # losA$mu <- lapply(losA$mean_los, function(x) gen_mu(x, sd_los))
+  # losA$sigma <- lapply(losA$mean_los, function(x) gen_sigma(x, sd_los))
+  # losA$los_params <- with(losA, paste(mu, sigma, sep=" , "))
+} else {
+  stop("est_method should be equal to 1 or 2")
+}
 
 # Set run time as the number of unique dates in arrivals (used in visit-based)
 sim_length <- as.integer(length(unique(arrivals_all$date)))

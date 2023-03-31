@@ -24,6 +24,10 @@ sd_esr <- 0.5 # end service rate/final visit rate
 temp_seed <- 1
 warmup <- 0
 
+# Choose method for estimation of mu and sigma (either 1 or 2)
+# See set_up.R for the difference between the methods
+est_method <- 1
+
 # Run model - P1 (visit) then P2 and P3 (bed) simulation - and print time taken
 start_time <- Sys.time()
 source(here("functions", "set_up.R"))
