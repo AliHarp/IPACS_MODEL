@@ -24,6 +24,12 @@ bed_new <- read.csv(here("outputs", "bed_output_using_IPACS_20230214_fix.csv"))
 bed_test <- read.csv(here("testing", "bed_testing_using_IPACS_20230214_fix.csv"))
 diffdf::diffdf(bed_new, bed_test)
 
+# Looking for differences in stochastic output of bed model
+stoch_bed_new <- read.csv(here(
+  "stochastic_outputs", "stochastic_bed_output_using_IPACS_20230214_fix.csv"))
+stoch_bed_test <- read.csv(here("testing", "stochastic_bed_testing_using_IPACS_20230214_fix.csv"))
+diffdf::diffdf(stoch_bed_new, stoch_bed_test)
+
 # Linting ---------------------------------------------------------------------
 lint("ipacs_main_script.R")
 lint(here("functions", "set_up.R"))

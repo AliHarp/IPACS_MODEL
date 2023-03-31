@@ -72,7 +72,7 @@ print(difftime(Sys.time(), start_time_bed), quote = FALSE)
 # Find average results for report ----------------------------------------------
 # Pivot dataframe so instead of columns for arr_admit, arr_no_admit, mean_wait,
 # niq and occ, these are now rows (so from wide to long format)
-res1q <- res1 %>%
+res1mean <- res1 %>%
   pivot_longer(
     cols = c(occ, niq, arr_admit, arr_no_admit, mean_wait),
     names_to = "measure",
@@ -80,12 +80,12 @@ res1q <- res1 %>%
   group_by(node, time, measure) %>%
   summarise(mean = mean(value, na.rm = TRUE))
 
-# Add column to res1q with capacity, based on node number referencing to cap
+# Add column to res1mean with capacity, based on node number referencing to cap
 cap_size <- as.numeric()
-for (x in seq_along(res1q$node)) {
-  cap_size[x] <- cap_bed[[res1q$node[x]]]
+for (x in seq_along(res1mean$node)) {
+  cap_size[x] <- cap_bed[[res1mean$node[x]]]
 }
-res1q["capacity"] <- cap_size
+res1mean["capacity"] <- cap_size
 
 # Find mean for given measure for each node for each day
 beds_required <- find_mean("occ")
@@ -122,5 +122,42 @@ colnames(meansoutput) <- colnames
 # Save to excel, with filename based on the input file
 write.csv(meansoutput,
           paste0("outputs/bed_output_using_",
+                 gsub(".xlsx", "", input_filename), ".csv"),
+          row.names = FALSE)
+
+# Create and save stochastic outputs dataframe --------------------------------
+# Quantile outputs for optional statistic report
+res1q <- res1 %>%
+  pivot_longer(cols = c(occ, niq),
+               names_to = "measure",
+               values_to = "value") %>%
+  group_by(node, time, measure) %>%
+  summarise(q05 = quantile(value, 0.05, na.rm = TRUE),
+            q5 = quantile(value, 0.5, na.rm = TRUE),
+            q95 = quantile(value, 0.95, na.rm = TRUE), 
+            mean = mean(value, na.rm = TRUE),
+            q10 = quantile(value, 0.1, na.rm = TRUE),
+            q25 = quantile(value, 0.25, na.rm = TRUE),
+            q75 = quantile(value, 0.75, na.rm = TRUE),
+            q90 = quantile(value, 0.9, na.rm = TRUE),
+            q025 = quantile(value, 0.025, na.rm = TRUE),
+            q975 = quantile(value, 0.975, na.rm = TRUE)) %>% 
+  ungroup()
+
+# Add column to res1q with capacity, based on node number referencing to cap
+cap_size_q <- as.numeric()
+for (x in seq_along(res1q$node)) {
+  cap_size_q[x] <- cap_bed[[res1q$node[x]]]
+}
+res1q["capacity"] <- cap_size_q
+
+# Loop through nodes and apply transformation with scenarios
+pathway_vector_bed <- as.list(pathway_vector_bed)
+node_values <- sapply(res1q$node, function(x) pathway_vector_bed[[x]])
+res1q$node_name <- node_values
+
+# Save to excel, with filename based on the input file
+write.csv(res1q,
+          paste0("stochastic_outputs/stochastic_bed_output_using_",
                  gsub(".xlsx", "", input_filename), ".csv"),
           row.names = FALSE)

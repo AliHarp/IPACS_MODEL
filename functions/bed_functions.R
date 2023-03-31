@@ -228,9 +228,9 @@ find_costs <- function(oc, node, cost_type){
 # time 0 to 180 (not for time 181)
 find_mean <- function(measure) {
   output_object <- lapply(seq_along(pathway_vector_bed), function(x) {
-    res1q$mean[(res1q$node == x &
-                  res1q$measure == measure &
-                  res1q$time < nrow(arr_rates_bed))]
+    res1mean$mean[(res1mean$node == x &
+                     res1mean$measure == measure &
+                     res1mean$time < nrow(arr_rates_bed))]
   })
   return(output_object)
 }
