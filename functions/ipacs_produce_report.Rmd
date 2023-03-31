@@ -16,7 +16,7 @@ library(flextable)
 ```{r import_res}
 # Import outputs from bed-based and visit-based scenarios
 # Use "here" package to create relative file path that works on all systems
-# AMY: Depends on input_filename from ipacs_main_script.R
+# Depends on input_filename from ipacs_main_script.R
 output_suffix <- paste0("_output_using_",
                         gsub(".xlsx", "", input_filename), ".csv")
 bed_data <- read.csv(here("outputs", paste0("bed", output_suffix)))
@@ -71,7 +71,7 @@ arr_plots <- function(arrs) {
   return(arr_plot)
 }
 
-# AMY: Currently depends on prior scripts - need to change
+# Currently depends on prior scripts
 
 # Create baseline arrivals plot using arr_plots()
 arrivals_all$name <- paste0(arrivals_all$node, "_", arrivals_all$scenario)
