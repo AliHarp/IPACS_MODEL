@@ -94,7 +94,6 @@ simfn <- function(runs) {
     ind <- ind1[which.min(cal$time[ind1])]
     
     # Keep record of niq, occ and tx
-    # AMY: Why?
     niq_old <- niq
     occ_old <- occ
     tx_old <- tx

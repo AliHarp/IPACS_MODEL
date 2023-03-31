@@ -4,7 +4,6 @@
 # Create objects for simulation using setup_all(), returning list of 2 where
 # 1 contains object names and 2 contains the objects. Extract from list into
 # workspace using assign()
-# AMY: mean_los_bed and sd_los_bed not used
 setup_bed <- setup_all("bed")
 for (i in seq_along(setup_bed[[1]])){
   assign(setup_bed[[1]][i], setup_bed[[2]][[i]])
