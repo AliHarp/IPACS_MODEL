@@ -6,7 +6,6 @@ This repository contains the models, with re-coding and bug fixes from [Amy Heat
 
 ## Binder  
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/AliHarp/IPACS_MODEL/HEAD?urlpath=rstudio)  
-Created using instructions from [here](https://ajstewartlang.github.io/23_introduction_to_binder/slides/23_introduction_to_binder.pdf) and [here](https://github.com/binder-examples/r).  
  
 ## Bug fixes  
 Most modification has been about simplification, but there have been some bug fixes that have modified the results of the simulation. These are noted below:  
