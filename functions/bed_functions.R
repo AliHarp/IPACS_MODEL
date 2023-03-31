@@ -73,8 +73,6 @@ simfn <- function(runs) {
   tx <- 0
   
   # Create res
-  # AMY: Above is all for 99 days, not 100 days. Does visits based have day 0?
-  # I previously thought this might be fine
   res <- data.frame(time = 0:(dur),
                     occ = NA,
                     niq = NA,
@@ -115,7 +113,6 @@ simfn <- function(runs) {
       # If number occupying pathway is less than capacity...
       if (occ < node_cap) {
         # Admit patient
-        # AMY: I think tx_day 1 goes to res time 0 rather than 1?
         res$arr_admit[tx_day] <- res$arr_admit[tx_day] + 1
         
         # Add time when admitted to cal
