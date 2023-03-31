@@ -38,20 +38,3 @@ lint(here("functions", "visit_model.R"))
 lint(here("functions", "bed_functions.R"))
 lint(here("functions", "bed_model.R"))
 lint(here("functions", "ipacs_produce_report.Rmd"))
-
-# Testing ---------------------------------------------------------------------
-# Name of file with model parameters (should be stored in model_inputs folder)
-input_filename <- "IPACS_20230214_fix.xlsx"
-input_list <- list(c("arrivals_all", "arrivals"),
-                   c("init_conds", "initial conditions"),
-                   c("capacity", "capacity"),
-                   c("losA", "los"),
-                   c("costs", "costs"))
-for (x in input_list){
-  assign(x[1], readxl::read_excel(here("model_inputs", input_filename),
-                                  sheet = x[2]))
-}
-
-# AMY: Ideally need to be able to call to run those rather than rewrite code here
-# Check median LOS less than mean LOS
-all(losA$median < losA$mean_los)
