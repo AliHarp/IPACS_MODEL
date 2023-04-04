@@ -45,7 +45,14 @@ sim_res <- lapply(1:(ncol(arr_rates_bed) - 1), function(node) {
   clusterEvalQ(cl = cl, c(library(tidyr), library(dplyr)))
 
   # Apply using parallel processing simfn for nruns time using information in cl
-  tres <- parLapply(cl, 1:nruns, simfn)
+  tres <- parLapply(cl, 1:nruns, simfn,
+                    node = node,
+                    node_init_occ = node_init_occ,
+                    node_init_niq = node_init_niq,
+                    node_arr_rates = node_arr_rates,
+                    node_srv_params = node_srv_params,
+                    node_cap = node_cap,
+                    node_loss = node_loss)
   stopCluster(cl)
 
   # Bind together results -----------------------------------------------------
@@ -91,14 +98,13 @@ beds_required <- find_mean("occ")
 niq_result <- find_mean("niq")
 wait_result <- find_mean("mean_wait")
 
-
 # Create cost column ----------------------------------------------------------
 # Calculate costs using find_costs()
 p2_beds_cost <- find_costs(oc = beds_required[grep("P2", pathway_vector_bed)],
                            node = "P2_B", cost_type = "community_cost")
 p3_beds_cost <- find_costs(oc = beds_required[grep("P3", pathway_vector_bed)],
-                           node = "P3_B", cost_type="community_cost")
-niq_cost <- find_costs(oc = niq_result, node="P2_B", cost_type="acute_dtoc")
+                           node = "P3_B", cost_type = "community_cost")
+niq_cost <- find_costs(oc = niq_result, node = "P2_B", cost_type = "acute_dtoc")
 
 # Add together NIQ costs and P2 and P3 bed costs
 beds_cost <- mapply(
@@ -133,14 +139,14 @@ res1q <- res1 %>%
   group_by(node, time, measure) %>%
   summarise(q05 = quantile(value, 0.05, na.rm = TRUE),
             q5 = quantile(value, 0.5, na.rm = TRUE),
-            q95 = quantile(value, 0.95, na.rm = TRUE), 
+            q95 = quantile(value, 0.95, na.rm = TRUE),
             mean = mean(value, na.rm = TRUE),
             q10 = quantile(value, 0.1, na.rm = TRUE),
             q25 = quantile(value, 0.25, na.rm = TRUE),
             q75 = quantile(value, 0.75, na.rm = TRUE),
             q90 = quantile(value, 0.9, na.rm = TRUE),
             q025 = quantile(value, 0.025, na.rm = TRUE),
-            q975 = quantile(value, 0.975, na.rm = TRUE)) %>% 
+            q975 = quantile(value, 0.975, na.rm = TRUE)) %>%
   ungroup()
 
 # Add column to res1q with capacity, based on node number referencing to cap

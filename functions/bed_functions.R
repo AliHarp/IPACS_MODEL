@@ -6,7 +6,9 @@ rtdist <- function(n, params) {
 }
 
 # Simulation function
-simfn <- function(runs) {
+simfn <- function(
+    runs, node, node_init_occ, node_init_niq, node_arr_rates,
+    node_srv_params, node_cap, node_loss) {
   # Set seed to number of current run (from 1:nruns)
   set.seed(runs)
   
